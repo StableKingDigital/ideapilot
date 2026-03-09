@@ -5,14 +5,13 @@ const multer = require("multer")
 const path = require("path")
 
 const app = express()
-
 const PORT = process.env.PORT || 3000
 
 const openai = new OpenAI({
  apiKey: process.env.OPENAI_API_KEY
 })
 
-const upload = multer({ storage: multer.memoryStorage() })
+const upload = multer({storage: multer.memoryStorage()})
 
 app.use(express.json())
 app.use(express.static(path.join(__dirname)))
@@ -20,6 +19,7 @@ app.use(express.static(path.join(__dirname)))
 let chats = {}
 
 function generateTitle(text){
+ if(!text) return "New Chat"
  const words = text.split(" ")
  return words.slice(0,6).join(" ")
 }
@@ -37,14 +37,14 @@ app.post("/plan",async(req,res)=>{
  const prompt = `
 You are IdeaPilot, an AI system that helps people turn ideas into practical execution paths.
 
-User Idea: ${idea}
+Idea: ${idea}
 Why it matters: ${why}
 Skills: ${skills}
 Resources: ${resources}
 Hours weekly: ${hours}
 Income goal: ${incomeGoal} ${currency}
 
-Create a structured response with these sections.
+Write sections:
 
 Idea Clarified
 Who This Helps
@@ -60,16 +60,14 @@ Risk Level
 Startup Capital Estimate
 Execution Difficulty
 
-Use weeks instead of days when describing timelines.
-
+Use weeks instead of days.
 Avoid markdown symbols like ### or **.
-Write clean readable paragraphs.
 `
 
  const completion = await openai.chat.completions.create({
   model:"gpt-4o-mini",
   messages:[
-   {role:"system",content:"You are IdeaPilot, a calm startup advisor helping people move from ideas to action."},
+   {role:"system",content:"You are IdeaPilot, a calm startup advisor."},
    {role:"user",content:prompt}
   ]
  })
@@ -91,7 +89,7 @@ Write clean readable paragraphs.
  }catch(err){
 
  console.log(err)
- res.status(500).json({error:"AI error generating plan"})
+ res.status(500).json({error:"AI error"})
 
  }
 
@@ -102,10 +100,15 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  try{
 
  const {chatId,question,mode}=req.body
+
+ if(!chatId){
+  return res.json({reply:"Session expired. Please start a new chat."})
+ }
+
  const chat = chats[chatId]
 
  if(!chat){
-  return res.json({reply:"Chat not found"})
+  return res.json({reply:"Chat session expired. Please start a new chat."})
  }
 
  let systemPrompt="You are IdeaPilot."
@@ -115,11 +118,11 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  }
 
  if(mode==="research"){
-  systemPrompt="Act as a market researcher providing insights, trends, and competitor awareness."
+  systemPrompt="Act as a market researcher."
  }
 
  if(mode==="build"){
-  systemPrompt="Act as a startup strategist focusing on execution steps and growth strategies."
+  systemPrompt="Act as a startup strategist focusing on execution."
  }
 
  let history = chat.messages.map(m=>({
@@ -127,38 +130,10 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
   content:m.content
  }))
 
- let userMessage
-
- if(req.file){
-
-  const base64Image = req.file.buffer.toString("base64")
-
-  userMessage = {
-   role:"user",
-   content:[
-    {
-     type:"text",
-     text: question || "Analyze this image and provide insights."
-    },
-    {
-     type:"image_url",
-     image_url:{
-      url:`data:${req.file.mimetype};base64,${base64Image}`
-     }
-    }
-   ]
-  }
-
- } else {
-
-  userMessage = {
-   role:"user",
-   content: question
-  }
-
- }
-
- history.push(userMessage)
+ history.push({
+  role:"user",
+  content:question
+ })
 
  const completion = await openai.chat.completions.create({
   model:"gpt-4o-mini",
@@ -178,7 +153,7 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  }catch(err){
 
  console.log(err)
- res.json({reply:"AI error generating response"})
+ res.json({reply:"AI error"})
 
  }
 
@@ -195,5 +170,5 @@ app.post("/delete-chat",(req,res)=>{
 })
 
 app.listen(PORT,()=>{
- console.log("IdeaPilot running on port " + PORT)
+ console.log("IdeaPilot running on port "+PORT)
 })
