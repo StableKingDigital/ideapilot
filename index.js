@@ -1,149 +1,200 @@
-require("dotenv").config();
-const express = require("express");
-const OpenAI = require("openai");
+require("dotenv").config()
 
-const app = express();
-const PORT = 3000;
+const express = require("express")
+const OpenAI = require("openai")
+const multer = require("multer")
+const path = require("path")
 
-app.use(express.json());
-app.use(express.static(__dirname));
+const app = express()
+const PORT = 3000
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+ apiKey: process.env.OPENAI_API_KEY
+})
 
-let lastPlan = "";
+const upload = multer({ storage: multer.memoryStorage() })
 
-// Load homepage
-app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/index.html");
-});
+app.use(express.json())
+app.use(express.static(__dirname))
 
-// Generate Execution Plan
-app.post("/plan", async (req, res) => {
-  try {
-    const { skills, hours, comfort, urgency, incomeGoal } = req.body;
+let chats = {}
 
-    const prompt = `
-You are a revenue execution operator.
+function generateTitle(text){
+ const words = text.split(" ")
+ return words.slice(0,6).join(" ")
+}
 
-User profile:
-- Skills: ${skills}
-- Weekly hours: ${hours}
-- Comfortable speaking to clients: ${comfort}
-- Needs income within 30 days: ${urgency}
-- Monthly income target: ${incomeGoal}
+app.get("/",(req,res)=>{
+ res.sendFile(path.join(__dirname,"index.html"))
+})
 
-Your job:
-Generate ONE clear income execution path.
+/* PLAN GENERATION */
 
-Rules:
-- No multiple options.
-- No motivational tone.
-- No blog-style advice.
-- Tactical only.
-- Include scripts.
-- Include close logic.
-- Must fit weekly hour constraint.
-- If urgency is "yes", prioritize fast close services.
-- If comfort is "no", reduce high-pressure sales.
+app.post("/plan",async(req,res)=>{
 
-Respond EXACTLY in this structure:
+try{
 
-==============================
-FIRST DEAL EXECUTION PLAN
-==============================
+ const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
 
-YOU WILL SELL:
-TARGET:
-WHY THEY WILL PAY:
-WHERE TO FIND THEM:
-EXACT MESSAGE TO SEND:
-WHAT TO SAY ON THE CALL:
-HOW TO CLOSE:
-HOW TO DELIVER FAST:
-HOW TO INCREASE PRICE:
-`;
+ const prompt = `
+You are IdeaPilot.
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You think like a disciplined revenue operator. You give direct execution instructions."
-        },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.4
-    });
+Idea: ${idea}
+Why: ${why}
+Skills: ${skills}
+Resources: ${resources}
+Hours weekly: ${hours}
+Income goal: ${incomeGoal} ${currency}
 
-    lastPlan = completion.choices[0].message.content;
+Write sections:
 
-    res.json({ plan: lastPlan });
+Idea Clarified
+Who This Helps
+Core Problem Being Solved
+Market Reality Check
+Simplest Version To Start
+Monetization Model
+First 3 Real Actions
+30 Day Validation Plan
+Long Term Expansion
+Feasibility Score
+Risk Level
+Startup Capital Estimate
+Execution Difficulty
 
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Plan generation failed." });
-  }
-});
-
-// Follow-up Handler (Structured & Tactical)
-app.post("/followup", async (req, res) => {
-  try {
-    const { question } = req.body;
-
-    if (!lastPlan) {
-      return res.json({ reply: "Generate a plan first." });
-    }
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `
-You are a tactical revenue execution operator.
-
-Follow-up answers must:
-- Stay structured.
-- No generic advice.
-- No long essays.
-- Provide step-by-step actions.
-- Provide scripts when relevant.
-- Include objection handling if relevant.
-
-Respond in this structure:
-
-==============================
-EXECUTION FOLLOW-UP
-==============================
-
-STEP 1:
-STEP 2:
-STEP 3:
-
-SCRIPT (if needed):
-
-OBJECTION RESPONSE (if needed):
-
-NEXT MOVE:
+Use weeks instead of days.
+Avoid markdown formatting.
 `
-        },
-        { role: "user", content: `Original Plan:\n${lastPlan}` },
-        { role: "user", content: `Follow-up Question:\n${question}` }
-      ],
-      temperature: 0.4
-    });
 
-    res.json({ reply: completion.choices[0].message.content });
+ const completion = await openai.chat.completions.create({
+ model:"gpt-4o-mini",
+ messages:[
+ {role:"system",content:"You are IdeaPilot."},
+ {role:"user",content:prompt}
+ ]
+ })
 
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Follow-up failed." });
-  }
-});
+ const reply = completion.choices[0].message.content
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+ const chatId = Date.now().toString()
+
+ chats[chatId]={
+ id:chatId,
+ title:generateTitle(idea),
+ messages:[
+ {role:"assistant",content:reply}
+ ]
+ }
+
+ res.json({chatId,reply})
+
+}catch(err){
+
+ console.log(err)
+ res.status(500).json({error:"AI error"})
+
+}
+
+})
+
+/* FOLLOWUP CHAT */
+
+app.post("/followup",upload.single("file"),async(req,res)=>{
+
+try{
+
+ const {chatId,question,mode}=req.body
+ const chat = chats[chatId]
+
+ if(!chat){
+ return res.json({reply:"Chat not found"})
+ }
+
+ let systemPrompt="You are IdeaPilot."
+
+ if(mode==="idea"){
+ systemPrompt="Help refine ideas."
+ }
+
+ if(mode==="research"){
+ systemPrompt="Act as a market researcher."
+ }
+
+ if(mode==="build"){
+ systemPrompt="Act as a startup strategist focusing on execution."
+ }
+
+ let history = chat.messages.map(m=>({
+ role:m.role==="assistant"?"assistant":"user",
+ content:m.content
+ }))
+
+ let userMessage
+
+ if(req.file){
+
+ const base64Image = req.file.buffer.toString("base64")
+
+ userMessage={
+ role:"user",
+ content:[
+ {
+ type:"text",
+ text:question || "Describe this image"
+ },
+ {
+ type:"image_url",
+ image_url:{
+ url:`data:${req.file.mimetype};base64,${base64Image}`
+ }
+ }
+ ]
+ }
+
+ }else{
+
+ userMessage={
+ role:"user",
+ content:question
+ }
+
+ }
+
+ history.push(userMessage)
+
+ const completion = await openai.chat.completions.create({
+ model:"gpt-4o-mini",
+ messages:[
+ {role:"system",content:systemPrompt},
+ ...history
+ ]
+ })
+
+ const reply = completion.choices[0].message.content
+
+ chat.messages.push({role:"user",content:question})
+ chat.messages.push({role:"assistant",content:reply})
+
+ res.json({reply})
+
+}catch(err){
+
+ console.log(err)
+ res.json({reply:"AI error"})
+}
+
+})
+
+app.get("/chats",(req,res)=>{
+ res.json(Object.values(chats))
+})
+
+app.post("/delete-chat",(req,res)=>{
+ const {id}=req.body
+ delete chats[id]
+ res.json({status:"deleted"})
+})
+
+app.listen(PORT,()=>{
+ console.log("IdeaPilot running on http://localhost:3000")
+})

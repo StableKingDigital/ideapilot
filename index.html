@@ -1,155 +1,417 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>First Deal Execution System</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 850px;
-      margin: 50px auto;
-      padding: 20px;
-      background: #111;
-      color: #eee;
-    }
 
-    h1 {
-      text-align: center;
-      margin-bottom: 10px;
-    }
+<title>IdeaPilot</title>
 
-    p {
-      text-align: center;
-      color: #aaa;
-      margin-bottom: 40px;
-    }
+<style>
 
-    label {
-      font-weight: bold;
-      display: block;
-      margin-top: 20px;
-    }
+body{
+margin:0;
+font-family:Arial;
+background:#0f172a;
+color:white;
+display:flex;
+height:100vh;
+}
 
-    input, select {
-      width: 100%;
-      padding: 10px;
-      margin-top: 5px;
-      background: #222;
-      color: #fff;
-      border: 1px solid #444;
-    }
+#sidebar{
+width:260px;
+background:#020617;
+padding:20px;
+}
 
-    button {
-      margin-top: 25px;
-      padding: 12px;
-      width: 100%;
-      background: #00c853;
-      color: black;
-      border: none;
-      font-weight: bold;
-      cursor: pointer;
-    }
+#brand h2{margin:0}
+#brand p{font-size:12px;color:#94a3b8}
 
-    button:hover {
-      background: #00e676;
-    }
+#newChat{
+background:#22c55e;
+border:none;
+padding:12px;
+width:100%;
+color:white;
+border-radius:6px;
+cursor:pointer;
+margin:20px 0;
+}
 
-    #result, #followupResult {
-      margin-top: 40px;
-      white-space: pre-wrap;
-      background: #1b1b1b;
-      padding: 25px;
-      border: 1px solid #333;
-      line-height: 1.6;
-    }
+.chatItem{
+background:#1e293b;
+padding:10px;
+border-radius:6px;
+margin-bottom:8px;
+cursor:pointer;
+white-space:nowrap;
+overflow:hidden;
+text-overflow:ellipsis;
+}
 
-    hr {
-      margin-top: 60px;
-      border: 1px solid #333;
-    }
-  </style>
+#main{
+flex:1;
+display:flex;
+flex-direction:column;
+}
+
+#modeBar{
+display:flex;
+gap:10px;
+padding:10px 20px;
+background:#020617;
+}
+
+.modeBtn{
+background:#1e293b;
+border:none;
+padding:8px 14px;
+color:white;
+border-radius:6px;
+cursor:pointer;
+}
+
+.modeBtn.active{
+background:#22c55e;
+}
+
+#messages{
+flex:1;
+overflow:auto;
+padding:30px;
+display:flex;
+flex-direction:column;
+gap:14px;
+}
+
+.message{
+max-width:850px;
+padding:14px;
+border-radius:10px;
+line-height:1.6;
+white-space:pre-line;
+}
+
+.ai{background:#1e293b}
+.user{
+background:#2563eb;
+align-self:flex-end;
+}
+
+#previewArea{
+padding:0 30px;
+}
+
+.previewImage{
+max-width:120px;
+border-radius:6px;
+margin-top:6px;
+}
+
+#inputBar{
+display:flex;
+gap:10px;
+padding:12px;
+background:#020617;
+}
+
+#inputWrapper{
+display:flex;
+align-items:center;
+flex:1;
+background:#0f172a;
+border:1px solid #1e293b;
+border-radius:6px;
+padding:6px;
+}
+
+#plusBtn{
+background:none;
+border:none;
+color:white;
+font-size:18px;
+cursor:pointer;
+margin-right:8px;
+}
+
+#question{
+flex:1;
+background:none;
+border:none;
+color:white;
+outline:none;
+}
+
+#send{
+background:#22c55e;
+border:none;
+padding:10px 18px;
+border-radius:6px;
+cursor:pointer;
+color:white;
+}
+
+#formPage{
+padding:40px;
+max-width:650px;
+}
+
+input{
+width:100%;
+margin-bottom:10px;
+padding:10px;
+background:#020617;
+border:1px solid #1e293b;
+color:white;
+}
+
+.generateBtn{
+background:#22c55e;
+border:none;
+padding:12px;
+color:white;
+border-radius:6px;
+cursor:pointer;
+}
+
+</style>
 </head>
 
 <body>
 
-<h1>Build Your First Paid Deal</h1>
-<p>No ideas. No theory. Just execution.</p>
+<div id="sidebar">
 
-<form id="plannerForm">
+<div id="brand">
+<h2>IdeaPilot</h2>
+<p>Turn ideas into execution paths</p>
+</div>
 
-  <label>What skills can you use immediately?</label>
-  <input type="text" id="skills" required>
+<button id="newChat" onclick="startNew()">+ New Chat</button>
 
-  <label>How many hours per week can you realistically work?</label>
-  <input type="number" id="hours" required>
+<h4>Your Chats</h4>
+<div id="chatList"></div>
 
-  <label>Are you comfortable speaking to clients?</label>
-  <select id="comfort">
-    <option value="yes">Yes</option>
-    <option value="little">Somewhat</option>
-    <option value="no">No</option>
-  </select>
+</div>
 
-  <label>Do you need income within 30 days?</label>
-  <select id="urgency">
-    <option value="yes">Yes</option>
-    <option value="no">No</option>
-  </select>
+<div id="main">
 
-  <label>Monthly income target?</label>
-  <input type="number" id="incomeGoal" required>
+<div id="modeBar">
 
-  <button type="submit">Generate Execution Plan</button>
-</form>
+<button class="modeBtn active" onclick="setMode('idea',this)">Idea</button>
+<button class="modeBtn" onclick="setMode('research',this)">Research</button>
+<button class="modeBtn" onclick="setMode('build',this)">Build</button>
 
-<div id="result"></div>
+</div>
 
-<hr>
+<div id="messages"></div>
 
-<h3>Ask a Tactical Follow-Up</h3>
-<input type="text" id="followupQuestion" placeholder="Example: What if they say it's too expensive?">
-<button onclick="sendFollowup()">Ask</button>
+<div id="formPage">
 
-<div id="followupResult"></div>
+<h2>Clarify Your Idea. Build Your Path.</h2>
+
+<input id="idea" placeholder="Idea">
+<input id="why" placeholder="Why does this idea matter">
+<input id="skills" placeholder="Skills">
+<input id="resources" placeholder="Resources">
+<input id="hours" placeholder="Hours per week">
+<input id="income" placeholder="Monthly income target">
+<input id="currency" placeholder="Currency">
+
+<button class="generateBtn" onclick="generate()">Generate Direction Plan</button>
+
+</div>
+
+<div id="previewArea"></div>
+
+<div id="inputBar">
+
+<div id="inputWrapper">
+
+<button id="plusBtn">+</button>
+
+<input id="question" placeholder="Ask follow-up question">
+
+<input type="file" id="imageUpload" accept="image/*" hidden>
+
+</div>
+
+<button id="send" onclick="sendQuestion()">Send</button>
+
+</div>
+
+</div>
 
 <script>
-document.getElementById("plannerForm").addEventListener("submit", async function (e) {
-  e.preventDefault();
 
-  const skills = document.getElementById("skills").value;
-  const hours = document.getElementById("hours").value;
-  const comfort = document.getElementById("comfort").value;
-  const urgency = document.getElementById("urgency").value;
-  const incomeGoal = document.getElementById("incomeGoal").value;
+let currentChatId=null
+let currentMode="idea"
+let pendingImage=null
 
-  const response = await fetch("/plan", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      skills,
-      hours,
-      comfort,
-      urgency,
-      incomeGoal
-    })
-  });
+const messages=document.getElementById("messages")
+const chatList=document.getElementById("chatList")
 
-  const data = await response.json();
-  document.getElementById("result").innerText = data.plan;
-  document.getElementById("followupResult").innerText = "";
-});
+function cleanAI(text){
 
-async function sendFollowup() {
-  const question = document.getElementById("followupQuestion").value;
-
-  const response = await fetch("/followup", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question })
-  });
-
-  const data = await response.json();
-  document.getElementById("followupResult").innerText = data.reply;
+return text
+.replace(/\*\*/g,"")
+.replace(/#{1,6}/g,"")
 }
+
+function addMessage(content,type){
+
+const div=document.createElement("div")
+div.className="message "+type
+
+if(type==="ai"){
+div.innerText = cleanAI(content)
+}else{
+div.innerText = content
+}
+
+messages.appendChild(div)
+messages.scrollTop=messages.scrollHeight
+
+}
+
+document.getElementById("plusBtn").onclick=()=>{
+document.getElementById("imageUpload").click()
+}
+
+document.getElementById("imageUpload").addEventListener("change",(e)=>{
+
+const file=e.target.files[0]
+if(!file) return
+
+pendingImage=file
+
+const reader=new FileReader()
+
+reader.onload=function(ev){
+
+document.getElementById("previewArea").innerHTML=
+`<img src="${ev.target.result}" class="previewImage">`
+
+}
+
+reader.readAsDataURL(file)
+
+})
+
+function setMode(mode,btn){
+
+currentMode=mode
+
+document.querySelectorAll(".modeBtn").forEach(b=>{
+b.classList.remove("active")
+})
+
+btn.classList.add("active")
+
+}
+
+async function generate(){
+
+messages.innerHTML=""
+document.getElementById("formPage").style.display="none"
+
+addMessage("Generating your AI direction plan...","ai")
+
+const res=await fetch("/plan",{
+
+method:"POST",
+headers:{"Content-Type":"application/json"},
+
+body:JSON.stringify({
+
+idea:idea.value,
+why:why.value,
+skills:skills.value,
+resources:resources.value,
+hours:hours.value,
+incomeGoal:income.value,
+currency:currency.value
+
+})
+
+})
+
+const data=await res.json()
+
+messages.innerHTML=""
+
+currentChatId=data.chatId
+
+addMessage(data.reply,"ai")
+
+loadChats()
+
+}
+
+async function sendQuestion(){
+
+const question=document.getElementById("question").value.trim()
+
+if(!question && !pendingImage) return
+
+addMessage(question,"user")
+
+const formData=new FormData()
+
+formData.append("chatId",currentChatId)
+formData.append("question",question)
+formData.append("mode",currentMode)
+
+if(pendingImage){
+formData.append("file",pendingImage)
+}
+
+document.getElementById("question").value=""
+document.getElementById("previewArea").innerHTML=""
+
+const res=await fetch("/followup",{method:"POST",body:formData})
+
+const data=await res.json()
+
+addMessage(data.reply,"ai")
+
+pendingImage=null
+
+}
+
+async function loadChats(){
+
+const res=await fetch("/chats")
+let chats=await res.json()
+
+chatList.innerHTML=""
+
+chats.reverse().forEach(chat=>{
+
+const div=document.createElement("div")
+div.className="chatItem"
+div.innerText=chat.title
+
+div.onclick=()=>{
+currentChatId=chat.id
+messages.innerHTML=""
+
+chat.messages.forEach(m=>{
+addMessage(m.content,m.role==="user"?"user":"ai")
+})
+}
+
+chatList.appendChild(div)
+
+})
+
+}
+
+function startNew(){
+
+messages.innerHTML=""
+document.getElementById("formPage").style.display="block"
+
+}
+
+loadChats()
+
 </script>
 
 </body>
