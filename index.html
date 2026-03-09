@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <title>IdeaPilot</title>
 
 <style>
@@ -32,29 +33,6 @@ color:white;
 border-radius:6px;
 cursor:pointer;
 margin:20px 0;
-}
-
-.chatItem{
-background:#1e293b;
-padding:10px;
-border-radius:6px;
-margin-bottom:8px;
-cursor:pointer;
-position:relative;
-white-space:nowrap;
-overflow:hidden;
-text-overflow:ellipsis;
-}
-
-.deleteBtn{
-position:absolute;
-right:10px;
-top:8px;
-display:none;
-}
-
-.chatItem:hover .deleteBtn{
-display:block;
 }
 
 #main{
@@ -167,10 +145,6 @@ cursor:pointer;
 
 <button id="newChat" onclick="startNew()">+ New Chat</button>
 
-<h4>Your Chats</h4>
-
-<div id="chatList"></div>
-
 </div>
 
 <div id="main">
@@ -213,17 +187,18 @@ cursor:pointer;
 
 <script>
 
-let currentChatId=null
 let currentMode="idea"
+let conversation=[]
 
 const messages=document.getElementById("messages")
-const chatList=document.getElementById("chatList")
 
 function cleanAI(text){
+
 return text
 .replace(/#{1,6}/g,"")
 .replace(/\*\*/g,"")
 .replace(/\n/g,"<br>")
+
 }
 
 function addMessage(content,type){
@@ -239,6 +214,7 @@ div.innerText=content
 
 messages.appendChild(div)
 messages.scrollTop=messages.scrollHeight
+
 }
 
 function setMode(mode,btn){
@@ -250,6 +226,7 @@ b.classList.remove("active")
 })
 
 btn.classList.add("active")
+
 }
 
 async function generate(){
@@ -282,12 +259,12 @@ const data=await res.json()
 
 messages.innerHTML=""
 
-currentChatId=data.chatId
-window.currentChatId=data.chatId
-
 addMessage(data.reply,"ai")
 
-loadChats()
+conversation=[
+{role:"assistant",content:data.reply}
+]
+
 }
 
 async function sendQuestion(){
@@ -299,55 +276,42 @@ if(!question) return
 
 addMessage(question,"user")
 
+conversation.push({
+role:"user",
+content:question
+})
+
 input.value=""
 
-const formData=new FormData()
+const res=await fetch("/followup",{
 
-formData.append("chatId",window.currentChatId)
-formData.append("question",question)
-formData.append("mode",currentMode)
+method:"POST",
+headers:{"Content-Type":"application/json"},
 
-const res=await fetch("/followup",{method:"POST",body:formData})
+body:JSON.stringify({
+
+messages:conversation,
+mode:currentMode
+
+})
+
+})
 
 const data=await res.json()
 
+conversation.push({
+role:"assistant",
+content:data.reply
+})
+
 addMessage(data.reply,"ai")
-}
-
-async function loadChats(){
-
-const res=await fetch("/chats")
-let chats=await res.json()
-
-chatList.innerHTML=""
-
-chats.reverse().forEach(chat=>{
-
-const div=document.createElement("div")
-div.className="chatItem"
-
-div.innerText=chat.title
-
-div.onclick=()=>{
-currentChatId=chat.id
-window.currentChatId=chat.id
-
-messages.innerHTML=""
-
-chat.messages.forEach(m=>{
-addMessage(m.content,m.role==="user"?"user":"ai")
-})
-}
-
-chatList.appendChild(div)
-
-})
 
 }
 
 function startNew(){
 
 messages.innerHTML=""
+conversation=[]
 document.getElementById("formPage").style.display="block"
 
 }
@@ -355,8 +319,6 @@ document.getElementById("formPage").style.display="block"
 document.getElementById("question").addEventListener("keypress",e=>{
 if(e.key==="Enter") sendQuestion()
 })
-
-loadChats()
 
 </script>
 

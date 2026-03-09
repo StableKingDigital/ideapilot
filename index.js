@@ -7,23 +7,24 @@ const app = express()
 const PORT = process.env.PORT || 3000
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+ apiKey: process.env.OPENAI_API_KEY
 })
 
 app.use(express.json({limit:"10mb"}))
 app.use(express.static(path.join(__dirname)))
 
-app.get("/", (req,res)=>{
-  res.sendFile(path.join(__dirname,"index.html"))
+app.get("/",(req,res)=>{
+ res.sendFile(path.join(__dirname,"index.html"))
 })
 
-app.post("/plan", async (req,res)=>{
-  try{
+app.post("/plan",async(req,res)=>{
 
-    const {idea,why,skills,resources,hours,incomeGoal,currency} = req.body
+ try{
 
-    const prompt = `
-You are IdeaPilot, an AI system that turns ideas into clear execution plans.
+ const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
+
+ const prompt = `
+You are IdeaPilot, an AI system that helps people turn ideas into practical execution paths.
 
 Idea: ${idea}
 Why it matters: ${why}
@@ -32,7 +33,7 @@ Resources: ${resources}
 Hours weekly: ${hours}
 Income goal: ${incomeGoal} ${currency}
 
-Write these sections:
+Create a structured response with these sections.
 
 Idea Clarified
 Who This Helps
@@ -52,64 +53,74 @@ Use weeks instead of days.
 Avoid markdown symbols like ### or **.
 `
 
-    const completion = await openai.chat.completions.create({
-      model:"gpt-4o-mini",
-      messages:[
-        {role:"system",content:"You are IdeaPilot, a calm startup advisor."},
-        {role:"user",content:prompt}
-      ]
-    })
+ const completion = await openai.chat.completions.create({
 
-    const reply = completion.choices[0].message.content
+ model:"gpt-4o-mini",
 
-    res.json({reply})
+ messages:[
+ {role:"system",content:"You are IdeaPilot, a calm startup advisor helping people move from ideas to action."},
+ {role:"user",content:prompt}
+ ]
 
-  }catch(err){
-    console.log(err)
-    res.status(500).json({error:"AI error"})
-  }
+ })
+
+ const reply = completion.choices[0].message.content
+
+ res.json({reply})
+
+ }catch(err){
+
+ console.log(err)
+ res.status(500).json({error:"AI error"})
+
+ }
+
 })
 
-app.post("/followup", async (req,res)=>{
+app.post("/followup",async(req,res)=>{
 
-  try{
+ try{
 
-    const {messages,mode} = req.body
+ const {messages,mode}=req.body
 
-    let systemPrompt="You are IdeaPilot."
+ let systemPrompt="You are IdeaPilot."
 
-    if(mode==="idea"){
-      systemPrompt="Help refine ideas and explore opportunities."
-    }
+ if(mode==="idea"){
+ systemPrompt="Help refine ideas and explore opportunities."
+ }
 
-    if(mode==="research"){
-      systemPrompt="Act as a market researcher."
-    }
+ if(mode==="research"){
+ systemPrompt="Act as a market researcher providing insights and market trends."
+ }
 
-    if(mode==="build"){
-      systemPrompt="Act as a startup strategist focusing on execution."
-    }
+ if(mode==="build"){
+ systemPrompt="Act as a startup strategist focusing on execution steps."
+ }
 
-    const completion = await openai.chat.completions.create({
-      model:"gpt-4o-mini",
-      messages:[
-        {role:"system",content:systemPrompt},
-        ...messages
-      ]
-    })
+ const completion = await openai.chat.completions.create({
 
-    const reply = completion.choices[0].message.content
+ model:"gpt-4o-mini",
 
-    res.json({reply})
+ messages:[
+ {role:"system",content:systemPrompt},
+ ...messages
+ ]
 
-  }catch(err){
+ })
 
-    console.log(err)
-    res.status(500).json({error:"AI error"})
-  }
+ const reply = completion.choices[0].message.content
+
+ res.json({reply})
+
+ }catch(err){
+
+ console.log(err)
+ res.status(500).json({error:"AI error"})
+
+ }
 
 })
 
 app.listen(PORT,()=>{
-  console.log("IdeaPilot running on port "+PORT)
+ console.log("IdeaPilot running on port "+PORT)
 })
