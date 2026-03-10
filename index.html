@@ -35,6 +35,26 @@ cursor:pointer;
 margin:20px 0;
 }
 
+.chatItem{
+background:#1e293b;
+padding:10px;
+border-radius:6px;
+margin-bottom:8px;
+cursor:pointer;
+position:relative;
+}
+
+.deleteBtn{
+position:absolute;
+right:10px;
+top:8px;
+display:none;
+}
+
+.chatItem:hover .deleteBtn{
+display:block;
+}
+
 #main{
 flex:1;
 display:flex;
@@ -108,11 +128,29 @@ cursor:pointer;
 
 #inputBar{
 display:flex;
-align-items:center;
 gap:10px;
 padding:12px;
 background:#020617;
 position:relative;
+}
+
+#toolsBtn{
+font-size:22px;
+cursor:pointer;
+}
+
+#toolsMenu{
+display:none;
+position:absolute;
+bottom:60px;
+background:#1e293b;
+padding:10px;
+border-radius:6px;
+}
+
+#toolsMenu div{
+padding:6px;
+cursor:pointer;
 }
 
 #question{
@@ -133,29 +171,6 @@ cursor:pointer;
 color:white;
 }
 
-#toolsBtn{
-font-size:20px;
-cursor:pointer;
-padding:6px 10px;
-background:#1e293b;
-border-radius:6px;
-}
-
-#toolsMenu{
-display:none;
-position:absolute;
-bottom:60px;
-left:10px;
-background:#1e293b;
-padding:10px;
-border-radius:6px;
-}
-
-#toolsMenu div{
-padding:6px;
-cursor:pointer;
-}
-
 </style>
 </head>
 
@@ -169,6 +184,10 @@ cursor:pointer;
 </div>
 
 <button id="newChat" onclick="startNew()">+ New Chat</button>
+
+<h4>Your Chats</h4>
+
+<div id="chatList"></div>
 
 </div>
 
@@ -204,19 +223,17 @@ cursor:pointer;
 
 <div id="toolsBtn" onclick="toggleTools()">+</div>
 
-<input id="question" placeholder="Ask follow-up question">
-
-<button id="send" onclick="sendQuestion()">Send</button>
-
 <div id="toolsMenu">
 
 <div onclick="uploadImage()">Upload Image</div>
-<div onclick="uploadFile()">Upload File</div>
 
 </div>
 
 <input type="file" id="imageUpload" accept="image/*" hidden>
-<input type="file" id="fileUpload" hidden>
+
+<input id="question" placeholder="Ask follow-up question">
+
+<button id="send" onclick="sendQuestion()">Send</button>
 
 </div>
 
@@ -224,45 +241,21 @@ cursor:pointer;
 
 <script>
 
+let currentChatId=null
 let currentMode="idea"
-let conversation=[]
 
 const messages=document.getElementById("messages")
-
-function cleanAI(text){
-
-return text
-.replace(/#{1,6}/g,"")
-.replace(/\*\*/g,"")
-.replace(/\n/g,"<br>")
-
-}
+const chatList=document.getElementById("chatList")
 
 function addMessage(content,type){
 
 const div=document.createElement("div")
 div.className="message "+type
-
-if(type==="ai"){
-div.innerHTML=cleanAI(content)
-}else{
 div.innerText=content
-}
 
 messages.appendChild(div)
+
 messages.scrollTop=messages.scrollHeight
-
-}
-
-function setMode(mode,btn){
-
-currentMode=mode
-
-document.querySelectorAll(".modeBtn").forEach(b=>{
-b.classList.remove("active")
-})
-
-btn.classList.add("active")
 
 }
 
@@ -279,8 +272,16 @@ function uploadImage(){
 document.getElementById("imageUpload").click()
 }
 
-function uploadFile(){
-document.getElementById("fileUpload").click()
+function setMode(mode,btn){
+
+currentMode=mode
+
+document.querySelectorAll(".modeBtn").forEach(b=>{
+b.classList.remove("active")
+})
+
+btn.classList.add("active")
+
 }
 
 async function generate(){
@@ -288,7 +289,7 @@ async function generate(){
 messages.innerHTML=""
 document.getElementById("formPage").style.display="none"
 
-addMessage("Generating your AI direction plan...","ai")
+addMessage("Generating plan...","ai")
 
 const res=await fetch("/plan",{
 
@@ -313,11 +314,11 @@ const data=await res.json()
 
 messages.innerHTML=""
 
+currentChatId=data.chatId
+
 addMessage(data.reply,"ai")
 
-conversation=[
-{role:"assistant",content:data.reply}
-]
+loadChats()
 
 }
 
@@ -330,49 +331,73 @@ if(!question) return
 
 addMessage(question,"user")
 
-conversation.push({
-role:"user",
-content:question
-})
-
 input.value=""
 
-const res=await fetch("/followup",{
+const formData=new FormData()
 
-method:"POST",
-headers:{"Content-Type":"application/json"},
+formData.append("chatId",currentChatId)
+formData.append("question",question)
+formData.append("mode",currentMode)
 
-body:JSON.stringify({
-
-messages:conversation,
-mode:currentMode
-
-})
-
-})
+const res=await fetch("/followup",{method:"POST",body:formData})
 
 const data=await res.json()
 
-conversation.push({
-role:"assistant",
-content:data.reply
+addMessage(data.reply,"ai")
+
+}
+
+async function loadChats(){
+
+const res=await fetch("/chats")
+
+let chats=await res.json()
+
+chatList.innerHTML=""
+
+chats.reverse().forEach(chat=>{
+
+const div=document.createElement("div")
+
+div.className="chatItem"
+
+div.innerText=chat.title
+
+div.onclick=()=>{
+
+currentChatId=chat.id
+
+messages.innerHTML=""
+
+chat.messages.forEach(m=>{
+
+addMessage(m.content,m.role==="user"?"user":"ai")
+
 })
 
-addMessage(data.reply,"ai")
+}
+
+chatList.appendChild(div)
+
+})
 
 }
 
 function startNew(){
 
 messages.innerHTML=""
-conversation=[]
+
 document.getElementById("formPage").style.display="block"
 
 }
 
 document.getElementById("question").addEventListener("keypress",e=>{
+
 if(e.key==="Enter") sendQuestion()
+
 })
+
+loadChats()
 
 </script>
 

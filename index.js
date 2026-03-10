@@ -1,12 +1,11 @@
 require("dotenv").config()
-
 const express = require("express")
 const OpenAI = require("openai")
 const multer = require("multer")
 const path = require("path")
 
 const app = express()
-const PORT = 3000
+const PORT = process.env.PORT || 3000
 
 const openai = new OpenAI({
  apiKey: process.env.OPENAI_API_KEY
@@ -15,11 +14,12 @@ const openai = new OpenAI({
 const upload = multer({ storage: multer.memoryStorage() })
 
 app.use(express.json())
-app.use(express.static(__dirname))
+app.use(express.static(path.join(__dirname)))
 
 let chats = {}
 
 function generateTitle(text){
+ if(!text) return "New Chat"
  const words = text.split(" ")
  return words.slice(0,6).join(" ")
 }
@@ -28,22 +28,20 @@ app.get("/",(req,res)=>{
  res.sendFile(path.join(__dirname,"index.html"))
 })
 
-/* PLAN GENERATION */
-
 app.post("/plan",async(req,res)=>{
 
-try{
+ try{
 
  const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
 
  const prompt = `
-You are IdeaPilot.
+You are IdeaPilot, an AI system helping people turn ideas into practical plans.
 
 Idea: ${idea}
 Why: ${why}
 Skills: ${skills}
 Resources: ${resources}
-Hours weekly: ${hours}
+Hours: ${hours}
 Income goal: ${incomeGoal} ${currency}
 
 Write sections:
@@ -62,16 +60,18 @@ Risk Level
 Startup Capital Estimate
 Execution Difficulty
 
-Use weeks instead of days.
-Avoid markdown formatting.
+Avoid markdown symbols like ### or **.
 `
 
  const completion = await openai.chat.completions.create({
+
  model:"gpt-4o-mini",
+
  messages:[
- {role:"system",content:"You are IdeaPilot."},
+ {role:"system",content:"You are IdeaPilot, a calm startup advisor."},
  {role:"user",content:prompt}
  ]
+
  })
 
  const reply = completion.choices[0].message.content
@@ -88,20 +88,18 @@ Avoid markdown formatting.
 
  res.json({chatId,reply})
 
-}catch(err){
+ }catch(err){
 
  console.log(err)
  res.status(500).json({error:"AI error"})
 
-}
+ }
 
 })
 
-/* FOLLOWUP CHAT */
-
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
-try{
+ try{
 
  const {chatId,question,mode}=req.body
  const chat = chats[chatId]
@@ -113,7 +111,7 @@ try{
  let systemPrompt="You are IdeaPilot."
 
  if(mode==="idea"){
- systemPrompt="Help refine ideas."
+ systemPrompt="Help refine ideas and opportunities."
  }
 
  if(mode==="research"){
@@ -121,7 +119,7 @@ try{
  }
 
  if(mode==="build"){
- systemPrompt="Act as a startup strategist focusing on execution."
+ systemPrompt="Act as a startup strategist."
  }
 
  let history = chat.messages.map(m=>({
@@ -129,45 +127,17 @@ try{
  content:m.content
  }))
 
- let userMessage
-
- if(req.file){
-
- const base64Image = req.file.buffer.toString("base64")
-
- userMessage={
- role:"user",
- content:[
- {
- type:"text",
- text:question || "Describe this image"
- },
- {
- type:"image_url",
- image_url:{
- url:`data:${req.file.mimetype};base64,${base64Image}`
- }
- }
- ]
- }
-
- }else{
-
- userMessage={
- role:"user",
- content:question
- }
-
- }
-
- history.push(userMessage)
+ history.push({role:"user",content:question})
 
  const completion = await openai.chat.completions.create({
+
  model:"gpt-4o-mini",
+
  messages:[
  {role:"system",content:systemPrompt},
  ...history
  ]
+
  })
 
  const reply = completion.choices[0].message.content
@@ -177,11 +147,12 @@ try{
 
  res.json({reply})
 
-}catch(err){
+ }catch(err){
 
  console.log(err)
  res.json({reply:"AI error"})
-}
+
+ }
 
 })
 
@@ -196,5 +167,5 @@ app.post("/delete-chat",(req,res)=>{
 })
 
 app.listen(PORT,()=>{
- console.log("IdeaPilot running on http://localhost:3000")
+ console.log("IdeaPilot running on port "+PORT)
 })
