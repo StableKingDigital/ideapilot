@@ -1,107 +1,104 @@
 require("dotenv").config()
-const express=require("express")
-const OpenAI=require("openai")
-const multer=require("multer")
-const path=require("path")
 
-const app=express()
-const PORT=3000
+const express = require("express")
+const multer = require("multer")
+const path = require("path")
+const { OpenAI } = require("openai")
 
-const openai=new OpenAI({
-apiKey:process.env.OPENAI_API_KEY
+const app = express()
+const upload = multer()
+
+const openai = new OpenAI({
+apiKey: process.env.OPENAI_API_KEY
 })
-
-const upload=multer({storage:multer.memoryStorage()})
 
 app.use(express.json())
 app.use(express.static(path.join(__dirname)))
 
-let chats={}
+const PORT = process.env.PORT || 3000
 
-function generateTitle(text){
-const words=text.split(" ")
-return words.slice(0,6).join(" ")
+let chats = {}
+
+function createId(){
+return Math.random().toString(36).substring(2,10)
 }
 
-app.get("/",(req,res)=>{
-res.sendFile(path.join(__dirname,"index.html"))
-})
+function getSystemPrompt(mode){
 
-app.post("/plan",async(req,res)=>{
+let base = `
+You are IdeaPilot.
+
+IdeaPilot helps people turn ideas into real businesses.
+
+Write clear structured sections with titles.
+Use paragraphs and lists.
+Do not use markdown symbols like ** or ---.
+
+If the user uploads an image:
+- describe what you see
+- explain branding or business opportunity
+- connect the image to their idea.
+`
+
+if(mode==="research"){
+base += " Focus on market research, trends, competitors."
+}
+
+if(mode==="build"){
+base += " Focus on execution steps and launch strategy."
+}
+
+return base
+}
+
+app.post("/plan", async (req,res)=>{
 
 try{
 
+const id=createId()
+
 const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
 
+const system=getSystemPrompt("idea")
+
 const prompt=`
-
-You are IdeaPilot, an AI startup advisor helping entrepreneurs turn ideas into real businesses.
-
 User Idea: ${idea}
-Why it matters: ${why}
+Why: ${why}
 Skills: ${skills}
 Resources: ${resources}
-Hours weekly: ${hours}
-Income goal: ${incomeGoal} ${currency}
+Hours: ${hours}
+Income Goal: ${incomeGoal} ${currency}
 
-Create a structured startup execution plan.
-
-Sections to include:
-
-Idea Clarified
-Who This Helps
-Core Problem Being Solved
-Market Reality Check
-Simplest Version To Start
-Monetization Model
-First 3 Real Actions
-30 Day Validation Plan
-Long Term Expansion
-Feasibility Score
-Risk Level
-Startup Capital Estimate
-Execution Difficulty
-
-Rules:
-• Write clean paragraphs
-• Do NOT use markdown symbols like ** or -
-• Do not use bullet characters
-• Separate sections with blank lines
-
+Create a structured startup direction plan.
 `
 
-const completion=await openai.chat.completions.create({
+const completion = await openai.chat.completions.create({
 model:"gpt-4o-mini",
 messages:[
-{
-role:"system",
-content:"You are IdeaPilot, an AI business strategist that helps people turn ideas into real startups."
-},
-{
-role:"user",
-content:prompt
-}
+{role:"system",content:system},
+{role:"user",content:prompt}
 ]
 })
 
 const reply=completion.choices[0].message.content
 
-const chatId=Date.now().toString()
-
-chats[chatId]={
-id:chatId,
-title:generateTitle(idea),
+chats[id]={
+title:idea,
 messages:[
+{role:"user",content:prompt},
 {role:"assistant",content:reply}
 ]
 }
 
-res.json({chatId,reply})
+res.json({
+chatId:id,
+reply
+})
 
-}catch(err){
+}catch(e){
 
-console.log(err)
-res.status(500).json({error:"AI error"})
+console.log(e)
+res.json({reply:"Error generating plan"})
 
 }
 
@@ -113,27 +110,13 @@ try{
 
 const {chatId,question,mode}=req.body
 
-const chat=chats[chatId]
-
-if(!chat){
+if(!chats[chatId]){
 return res.json({reply:"Chat not found"})
 }
 
-let systemPrompt="You are IdeaPilot."
+const system=getSystemPrompt(mode)
 
-if(mode==="idea"){
-systemPrompt="You help refine startup ideas."
-}
-
-if(mode==="research"){
-systemPrompt="You act as a market researcher analyzing trends, competitors and opportunities."
-}
-
-if(mode==="build"){
-systemPrompt="You act as a startup execution strategist helping build and scale businesses."
-}
-
-let history=chat.messages.map(m=>({
+let history = chats[chatId].messages.map(m=>({
 role:m.role,
 content:m.content
 }))
@@ -142,19 +125,19 @@ let userMessage
 
 if(req.file){
 
-const base64Image=req.file.buffer.toString("base64")
+const base64=req.file.buffer.toString("base64")
 
 userMessage={
 role:"user",
 content:[
 {
 type:"text",
-text:question
+text:question || "Analyze this image"
 },
 {
 type:"image_url",
 image_url:{
-url:`data:${req.file.mimetype};base64,${base64Image}`
+url:`data:${req.file.mimetype};base64,${base64}`
 }
 }
 ]
@@ -169,10 +152,10 @@ content:question
 
 }
 
-const completion=await openai.chat.completions.create({
+const completion = await openai.chat.completions.create({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:systemPrompt},
+{role:"system",content:system},
 ...history,
 userMessage
 ]
@@ -180,29 +163,49 @@ userMessage
 
 const reply=completion.choices[0].message.content
 
-chat.messages.push({role:"user",content:question})
-chat.messages.push({role:"assistant",content:reply})
+chats[chatId].messages.push({
+role:"user",
+content:question
+})
+
+chats[chatId].messages.push({
+role:"assistant",
+content:reply
+})
 
 res.json({reply})
 
-}catch(err){
+}catch(e){
 
-console.log(err)
+console.log(e)
 res.json({reply:"AI error"})
+
 }
 
 })
 
 app.get("/chats",(req,res)=>{
-res.json(Object.values(chats))
+
+const list=Object.keys(chats).map(id=>({
+id,
+title:chats[id].title,
+messages:chats[id].messages
+}))
+
+res.json(list)
+
 })
 
 app.post("/delete-chat",(req,res)=>{
+
 const {id}=req.body
+
 delete chats[id]
-res.json({status:"deleted"})
+
+res.json({ok:true})
+
 })
 
 app.listen(PORT,()=>{
-console.log("IdeaPilot running on http://localhost:3000")
+console.log("IdeaPilot running on port "+PORT)
 })
