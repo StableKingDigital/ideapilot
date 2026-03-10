@@ -35,7 +35,7 @@ app.post("/plan",async(req,res)=>{
  const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
 
  const prompt = `
-You are IdeaPilot, an AI helping people turn ideas into real plans.
+You are IdeaPilot.
 
 Idea: ${idea}
 Why: ${why}
@@ -60,7 +60,7 @@ Risk Level
 Startup Capital Estimate
 Execution Difficulty
 
-Avoid markdown formatting like ### ** or bullet dashes.
+Do NOT use markdown symbols like ** or ###.
 `
 
  const completion = await openai.chat.completions.create({
@@ -68,7 +68,7 @@ Avoid markdown formatting like ### ** or bullet dashes.
  model:"gpt-4o-mini",
 
  messages:[
- {role:"system",content:"You are IdeaPilot, a startup advisor and visual analyst."},
+ {role:"system",content:"You are IdeaPilot, a startup advisor."},
  {role:"user",content:prompt}
  ]
 
@@ -101,49 +101,34 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  try{
 
- const {chatId,question,mode}=req.body
- const chat = chats[chatId]
+ const {chatId,question,mode,messages}=req.body
 
- if(!chat){
- return res.json({reply:"Chat not found"})
+ let history=[]
+
+ if(messages){
+ history=JSON.parse(messages)
  }
 
  let systemPrompt="You are IdeaPilot."
 
- if(mode==="idea"){
- systemPrompt="Help refine the idea and explore opportunities."
- }
-
- if(mode==="research"){
- systemPrompt="Act as a market researcher."
- }
-
- if(mode==="build"){
- systemPrompt="Act as a startup builder."
- }
-
- let history = chat.messages.map(m=>({
- role:m.role,
- content:m.content
- }))
+ if(mode==="idea") systemPrompt="Help refine the idea."
+ if(mode==="research") systemPrompt="Act as a market researcher."
+ if(mode==="build") systemPrompt="Act as a startup builder."
 
  let userMessage
 
  if(req.file){
 
- const base64Image=req.file.buffer.toString("base64")
+ const base64=req.file.buffer.toString("base64")
 
  userMessage={
  role:"user",
  content:[
- {
- type:"text",
- text:question || "Analyze this image."
- },
+ {type:"text",text:question || "Analyze this image"},
  {
  type:"image_url",
  image_url:{
- url:`data:${req.file.mimetype};base64,${base64Image}`
+ url:`data:${req.file.mimetype};base64,${base64}`
  }
  }
  ]
@@ -173,27 +158,17 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  const reply = completion.choices[0].message.content
 
- chat.messages.push({role:"user",content:question})
- chat.messages.push({role:"assistant",content:reply})
+ history.push({role:"assistant",content:reply})
 
- res.json({reply})
+ res.json({reply,history})
 
  }catch(err){
 
  console.log(err)
  res.json({reply:"AI error"})
+
  }
 
-})
-
-app.get("/chats",(req,res)=>{
- res.json(Object.values(chats))
-})
-
-app.post("/delete-chat",(req,res)=>{
- const {id}=req.body
- delete chats[id]
- res.json({status:"deleted"})
 })
 
 app.listen(PORT,()=>{
