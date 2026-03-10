@@ -41,6 +41,15 @@ padding:10px;
 border-radius:6px;
 margin-bottom:8px;
 cursor:pointer;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+.deleteBtn{
+color:#f87171;
+cursor:pointer;
+font-size:14px;
 }
 
 #main{
@@ -91,9 +100,27 @@ background:#2563eb;
 align-self:flex-end;
 }
 
-.message img{
-max-width:220px;
-border-radius:8px;
+#formPage{
+padding:40px;
+max-width:650px;
+}
+
+input{
+width:100%;
+margin-bottom:10px;
+padding:10px;
+background:#020617;
+border:1px solid #1e293b;
+color:white;
+}
+
+.generateBtn{
+background:#22c55e;
+border:none;
+padding:12px;
+color:white;
+border-radius:6px;
+cursor:pointer;
 }
 
 #inputBar{
@@ -101,7 +128,6 @@ display:flex;
 gap:10px;
 padding:12px;
 background:#020617;
-align-items:center;
 }
 
 #inputContainer{
@@ -131,33 +157,10 @@ outline:none;
 #send{
 background:#22c55e;
 border:none;
-padding:10px 16px;
+padding:10px 18px;
 border-radius:6px;
 cursor:pointer;
 color:white;
-}
-
-#formPage{
-padding:40px;
-max-width:650px;
-}
-
-input{
-width:100%;
-margin-bottom:10px;
-padding:10px;
-background:#020617;
-border:1px solid #1e293b;
-color:white;
-}
-
-.generateBtn{
-background:#22c55e;
-border:none;
-padding:12px;
-color:white;
-border-radius:6px;
-cursor:pointer;
 }
 
 </style>
@@ -212,11 +215,9 @@ cursor:pointer;
 
 <div id="inputContainer">
 
-<div id="toolsBtn" onclick="uploadImage()">+</div>
+<div id="toolsBtn">+</div>
 
 <input id="question" placeholder="Ask follow-up question">
-
-<input type="file" id="imageUpload" hidden>
 
 </div>
 
@@ -240,13 +241,18 @@ div.className="message "+type
 div.innerText=content
 
 messages.appendChild(div)
+
 messages.scrollTop=messages.scrollHeight
 
 }
 
 async function generate(){
 
+document.getElementById("formPage").style.display="none"
+
 messages.innerHTML=""
+
+addMessage("Generating your plan...","ai")
 
 const res=await fetch("/plan",{
 
@@ -268,6 +274,8 @@ currency:currency.value
 })
 
 const data=await res.json()
+
+messages.innerHTML=""
 
 currentChatId=data.chatId
 
@@ -312,10 +320,30 @@ chatList.innerHTML=""
 chats.reverse().forEach(chat=>{
 
 const div=document.createElement("div")
-
 div.className="chatItem"
 
-div.innerText=chat.title
+const title=document.createElement("span")
+title.innerText=chat.title
+
+const del=document.createElement("span")
+del.innerText="🗑"
+del.className="deleteBtn"
+
+del.onclick=async(e)=>{
+e.stopPropagation()
+
+await fetch("/delete-chat",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id:chat.id})
+})
+
+loadChats()
+
+}
+
+div.appendChild(title)
+div.appendChild(del)
 
 div.onclick=()=>{
 
@@ -324,9 +352,7 @@ currentChatId=chat.id
 messages.innerHTML=""
 
 chat.messages.forEach(m=>{
-
 addMessage(m.content,m.role==="user"?"user":"ai")
-
 })
 
 }
@@ -342,10 +368,6 @@ function startNew(){
 messages.innerHTML=""
 document.getElementById("formPage").style.display="block"
 
-}
-
-function uploadImage(){
-document.getElementById("imageUpload").click()
 }
 
 loadChats()
