@@ -1,4 +1,5 @@
 require("dotenv").config()
+
 const express = require("express")
 const OpenAI = require("openai")
 const multer = require("multer")
@@ -20,8 +21,7 @@ let chats = {}
 
 function generateTitle(text){
  if(!text) return "New Chat"
- const words = text.split(" ")
- return words.slice(0,6).join(" ")
+ return text.split(" ").slice(0,6).join(" ")
 }
 
 app.get("/",(req,res)=>{
@@ -35,7 +35,7 @@ app.post("/plan",async(req,res)=>{
  const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
 
  const prompt = `
-You are IdeaPilot, an AI system helping people turn ideas into practical plans.
+You are IdeaPilot, an AI helping people turn ideas into real plans.
 
 Idea: ${idea}
 Why: ${why}
@@ -60,7 +60,7 @@ Risk Level
 Startup Capital Estimate
 Execution Difficulty
 
-Avoid markdown symbols like ### or **.
+Avoid markdown formatting like ### ** or bullet dashes.
 `
 
  const completion = await openai.chat.completions.create({
@@ -68,7 +68,7 @@ Avoid markdown symbols like ### or **.
  model:"gpt-4o-mini",
 
  messages:[
- {role:"system",content:"You are IdeaPilot, a calm startup advisor."},
+ {role:"system",content:"You are IdeaPilot, a startup advisor and visual analyst."},
  {role:"user",content:prompt}
  ]
 
@@ -111,7 +111,7 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  let systemPrompt="You are IdeaPilot."
 
  if(mode==="idea"){
- systemPrompt="Help refine ideas and opportunities."
+ systemPrompt="Help refine the idea and explore opportunities."
  }
 
  if(mode==="research"){
@@ -119,15 +119,46 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  }
 
  if(mode==="build"){
- systemPrompt="Act as a startup strategist."
+ systemPrompt="Act as a startup builder."
  }
 
  let history = chat.messages.map(m=>({
- role:m.role==="assistant"?"assistant":"user",
+ role:m.role,
  content:m.content
  }))
 
- history.push({role:"user",content:question})
+ let userMessage
+
+ if(req.file){
+
+ const base64Image=req.file.buffer.toString("base64")
+
+ userMessage={
+ role:"user",
+ content:[
+ {
+ type:"text",
+ text:question || "Analyze this image."
+ },
+ {
+ type:"image_url",
+ image_url:{
+ url:`data:${req.file.mimetype};base64,${base64Image}`
+ }
+ }
+ ]
+ }
+
+ }else{
+
+ userMessage={
+ role:"user",
+ content:question
+ }
+
+ }
+
+ history.push(userMessage)
 
  const completion = await openai.chat.completions.create({
 
@@ -151,7 +182,6 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  console.log(err)
  res.json({reply:"AI error"})
-
  }
 
 })

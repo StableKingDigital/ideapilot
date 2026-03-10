@@ -41,18 +41,6 @@ padding:10px;
 border-radius:6px;
 margin-bottom:8px;
 cursor:pointer;
-position:relative;
-}
-
-.deleteBtn{
-position:absolute;
-right:10px;
-top:8px;
-display:none;
-}
-
-.chatItem:hover .deleteBtn{
-display:block;
 }
 
 #main{
@@ -103,27 +91,9 @@ background:#2563eb;
 align-self:flex-end;
 }
 
-#formPage{
-padding:40px;
-max-width:650px;
-}
-
-input{
-width:100%;
-margin-bottom:10px;
-padding:10px;
-background:#020617;
-border:1px solid #1e293b;
-color:white;
-}
-
-.generateBtn{
-background:#22c55e;
-border:none;
-padding:12px;
-color:white;
-border-radius:6px;
-cursor:pointer;
+.message img{
+max-width:240px;
+border-radius:8px;
 }
 
 #inputBar{
@@ -169,6 +139,29 @@ padding:10px 18px;
 border-radius:6px;
 cursor:pointer;
 color:white;
+}
+
+#formPage{
+padding:40px;
+max-width:650px;
+}
+
+input{
+width:100%;
+margin-bottom:10px;
+padding:10px;
+background:#020617;
+border:1px solid #1e293b;
+color:white;
+}
+
+.generateBtn{
+background:#22c55e;
+border:none;
+padding:12px;
+color:white;
+border-radius:6px;
+cursor:pointer;
 }
 
 </style>
@@ -247,14 +240,28 @@ let currentMode="idea"
 const messages=document.getElementById("messages")
 const chatList=document.getElementById("chatList")
 
+function cleanAI(text){
+
+return text
+.replace(/#{1,6}/g,"")
+.replace(/\*\*/g,"")
+.replace(/^- /gm,"")
+.replace(/\n/g,"<br>")
+
+}
+
 function addMessage(content,type){
 
 const div=document.createElement("div")
 div.className="message "+type
+
+if(type==="ai"){
+div.innerHTML=cleanAI(content)
+}else{
 div.innerText=content
+}
 
 messages.appendChild(div)
-
 messages.scrollTop=messages.scrollHeight
 
 }
@@ -271,6 +278,33 @@ menu.style.display==="block" ? "none" : "block"
 function uploadImage(){
 document.getElementById("imageUpload").click()
 }
+
+document.getElementById("imageUpload").addEventListener("change",function(){
+
+const file=this.files[0]
+if(!file) return
+
+const reader=new FileReader()
+
+reader.onload=function(e){
+
+const div=document.createElement("div")
+div.className="message user"
+
+const img=document.createElement("img")
+img.src=e.target.result
+
+div.appendChild(img)
+
+messages.appendChild(div)
+
+messages.scrollTop=messages.scrollHeight
+
+}
+
+reader.readAsDataURL(file)
+
+})
 
 function setMode(mode,btn){
 
@@ -350,7 +384,6 @@ addMessage(data.reply,"ai")
 async function loadChats(){
 
 const res=await fetch("/chats")
-
 let chats=await res.json()
 
 chatList.innerHTML=""
@@ -358,9 +391,7 @@ chatList.innerHTML=""
 chats.reverse().forEach(chat=>{
 
 const div=document.createElement("div")
-
 div.className="chatItem"
-
 div.innerText=chat.title
 
 div.onclick=()=>{
@@ -370,9 +401,7 @@ currentChatId=chat.id
 messages.innerHTML=""
 
 chat.messages.forEach(m=>{
-
 addMessage(m.content,m.role==="user"?"user":"ai")
-
 })
 
 }
@@ -386,15 +415,12 @@ chatList.appendChild(div)
 function startNew(){
 
 messages.innerHTML=""
-
 document.getElementById("formPage").style.display="block"
 
 }
 
 document.getElementById("question").addEventListener("keypress",e=>{
-
 if(e.key==="Enter") sendQuestion()
-
 })
 
 loadChats()
