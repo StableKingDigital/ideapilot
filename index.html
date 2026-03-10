@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-
 <title>IdeaPilot</title>
 
 <style>
@@ -40,16 +39,15 @@ background:#1e293b;
 padding:10px;
 border-radius:6px;
 margin-bottom:8px;
-cursor:pointer;
 display:flex;
 justify-content:space-between;
 align-items:center;
+cursor:pointer;
 }
 
 .deleteBtn{
 color:#f87171;
 cursor:pointer;
-font-size:14px;
 }
 
 #main{
@@ -95,6 +93,7 @@ line-height:1.6;
 }
 
 .ai{background:#1e293b}
+
 .user{
 background:#2563eb;
 align-self:flex-end;
@@ -163,6 +162,12 @@ cursor:pointer;
 color:white;
 }
 
+img{
+max-width:260px;
+border-radius:8px;
+margin-top:8px;
+}
+
 </style>
 </head>
 
@@ -187,9 +192,9 @@ color:white;
 
 <div id="modeBar">
 
-<button class="modeBtn active">Idea</button>
-<button class="modeBtn">Research</button>
-<button class="modeBtn">Build</button>
+<button class="modeBtn active" onclick="setMode('idea',this)">Idea</button>
+<button class="modeBtn" onclick="setMode('research',this)">Research</button>
+<button class="modeBtn" onclick="setMode('build',this)">Build</button>
 
 </div>
 
@@ -215,7 +220,7 @@ color:white;
 
 <div id="inputContainer">
 
-<div id="toolsBtn">+</div>
+<div id="toolsBtn" onclick="document.getElementById('imageUpload').click()">+</div>
 
 <input id="question" placeholder="Ask follow-up question">
 
@@ -225,21 +230,71 @@ color:white;
 
 </div>
 
+<input type="file" id="imageUpload" hidden accept="image/*">
+
 </div>
 
 <script>
 
 let currentChatId=null
+let currentMode="idea"
 
 const messages=document.getElementById("messages")
 const chatList=document.getElementById("chatList")
 
-function addMessage(content,type){
+function setMode(mode,btn){
+
+currentMode=mode
+
+document.querySelectorAll(".modeBtn").forEach(b=>{
+b.classList.remove("active")
+})
+
+btn.classList.add("active")
+
+}
+
+function cleanAI(text){
+
+return text
+.replace(/\*\*/g,"")
+.replace(/^- /gm,"")
+.replace(/\n/g,"<br>")
+
+}
+
+function typeWriter(text){
+
+let i=0
+const div=document.createElement("div")
+div.className="message ai"
+messages.appendChild(div)
+
+function type(){
+
+if(i<text.length){
+
+div.innerHTML+=text.charAt(i)
+
+i++
+
+messages.scrollTop=messages.scrollHeight
+
+setTimeout(type,8)
+
+}
+
+}
+
+type()
+
+}
+
+function addUser(text){
 
 const div=document.createElement("div")
-div.className="message "+type
-div.innerText=content
-
+div.className="message user"
+div.innerText=text
 messages.appendChild(div)
 
 messages.scrollTop=messages.scrollHeight
@@ -252,11 +307,12 @@ document.getElementById("formPage").style.display="none"
 
 messages.innerHTML=""
 
-addMessage("Generating your plan...","ai")
+typeWriter("Generating your AI direction plan...")
 
 const res=await fetch("/plan",{
 
 method:"POST",
+
 headers:{"Content-Type":"application/json"},
 
 body:JSON.stringify({
@@ -279,7 +335,7 @@ messages.innerHTML=""
 
 currentChatId=data.chatId
 
-addMessage(data.reply,"ai")
+typeWriter(cleanAI(data.reply))
 
 loadChats()
 
@@ -288,11 +344,12 @@ loadChats()
 async function sendQuestion(){
 
 const input=document.getElementById("question")
+
 const question=input.value.trim()
 
-if(!question) return
+if(!question)return
 
-addMessage(question,"user")
+addUser(question)
 
 input.value=""
 
@@ -300,42 +357,73 @@ const formData=new FormData()
 
 formData.append("chatId",currentChatId)
 formData.append("question",question)
+formData.append("mode",currentMode)
 
 const res=await fetch("/followup",{method:"POST",body:formData})
 
 const data=await res.json()
 
-addMessage(data.reply,"ai")
+typeWriter(cleanAI(data.reply))
 
 }
+
+document.getElementById("imageUpload").addEventListener("change",function(){
+
+const file=this.files[0]
+
+if(!file)return
+
+const reader=new FileReader()
+
+reader.onload=function(e){
+
+const img=document.createElement("img")
+img.src=e.target.result
+
+messages.appendChild(img)
+
+}
+
+reader.readAsDataURL(file)
+
+})
 
 async function loadChats(){
 
 const res=await fetch("/chats")
 
-let chats=await res.json()
+const chats=await res.json()
 
 chatList.innerHTML=""
 
 chats.reverse().forEach(chat=>{
 
 const div=document.createElement("div")
+
 div.className="chatItem"
 
 const title=document.createElement("span")
+
 title.innerText=chat.title
 
 const del=document.createElement("span")
+
 del.innerText="🗑"
+
 del.className="deleteBtn"
 
 del.onclick=async(e)=>{
+
 e.stopPropagation()
 
 await fetch("/delete-chat",{
+
 method:"POST",
+
 headers:{"Content-Type":"application/json"},
+
 body:JSON.stringify({id:chat.id})
+
 })
 
 loadChats()
@@ -343,6 +431,7 @@ loadChats()
 }
 
 div.appendChild(title)
+
 div.appendChild(del)
 
 div.onclick=()=>{
@@ -352,7 +441,10 @@ currentChatId=chat.id
 messages.innerHTML=""
 
 chat.messages.forEach(m=>{
-addMessage(m.content,m.role==="user"?"user":"ai")
+
+if(m.role==="user") addUser(m.content)
+else typeWriter(cleanAI(m.content))
+
 })
 
 }
@@ -366,6 +458,7 @@ chatList.appendChild(div)
 function startNew(){
 
 messages.innerHTML=""
+
 document.getElementById("formPage").style.display="block"
 
 }
