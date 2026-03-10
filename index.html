@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <title>IdeaPilot</title>
 
 <style>
@@ -20,6 +21,9 @@ background:#020617;
 padding:20px;
 }
 
+#brand h2{margin:0}
+#brand p{font-size:12px;color:#94a3b8}
+
 #newChat{
 background:#22c55e;
 border:none;
@@ -31,10 +35,38 @@ cursor:pointer;
 margin:20px 0;
 }
 
+.chatItem{
+background:#1e293b;
+padding:10px;
+border-radius:6px;
+margin-bottom:8px;
+cursor:pointer;
+}
+
 #main{
 flex:1;
 display:flex;
 flex-direction:column;
+}
+
+#modeBar{
+display:flex;
+gap:10px;
+padding:10px 20px;
+background:#020617;
+}
+
+.modeBtn{
+background:#1e293b;
+border:none;
+padding:8px 14px;
+color:white;
+border-radius:6px;
+cursor:pointer;
+}
+
+.modeBtn.active{
+background:#22c55e;
 }
 
 #messages{
@@ -47,10 +79,10 @@ gap:14px;
 }
 
 .message{
-max-width:700px;
-padding:12px;
+max-width:850px;
+padding:14px;
 border-radius:10px;
-line-height:1.5;
+line-height:1.6;
 }
 
 .ai{background:#1e293b}
@@ -59,9 +91,14 @@ background:#2563eb;
 align-self:flex-end;
 }
 
+.message img{
+max-width:220px;
+border-radius:8px;
+}
+
 #inputBar{
 display:flex;
-gap:8px;
+gap:10px;
 padding:12px;
 background:#020617;
 align-items:center;
@@ -73,32 +110,54 @@ display:flex;
 align-items:center;
 background:#0f172a;
 border:1px solid #1e293b;
-border-radius:10px;
+border-radius:8px;
 padding:6px;
 }
 
 #toolsBtn{
 font-size:20px;
 cursor:pointer;
-padding:6px;
+margin-right:8px;
 }
 
 #question{
 flex:1;
-border:none;
 background:transparent;
+border:none;
 color:white;
 outline:none;
-padding:8px;
 }
 
 #send{
 background:#22c55e;
 border:none;
 padding:10px 16px;
-border-radius:8px;
+border-radius:6px;
 cursor:pointer;
 color:white;
+}
+
+#formPage{
+padding:40px;
+max-width:650px;
+}
+
+input{
+width:100%;
+margin-bottom:10px;
+padding:10px;
+background:#020617;
+border:1px solid #1e293b;
+color:white;
+}
+
+.generateBtn{
+background:#22c55e;
+border:none;
+padding:12px;
+color:white;
+border-radius:6px;
+cursor:pointer;
 }
 
 </style>
@@ -108,15 +167,46 @@ color:white;
 
 <div id="sidebar">
 
+<div id="brand">
 <h2>IdeaPilot</h2>
+<p>Turn ideas into execution paths</p>
+</div>
 
 <button id="newChat" onclick="startNew()">+ New Chat</button>
+
+<h4>Your Chats</h4>
+
+<div id="chatList"></div>
 
 </div>
 
 <div id="main">
 
+<div id="modeBar">
+
+<button class="modeBtn active">Idea</button>
+<button class="modeBtn">Research</button>
+<button class="modeBtn">Build</button>
+
+</div>
+
 <div id="messages"></div>
+
+<div id="formPage">
+
+<h2>Clarify Your Idea</h2>
+
+<input id="idea" placeholder="Idea">
+<input id="why" placeholder="Why it matters">
+<input id="skills" placeholder="Skills">
+<input id="resources" placeholder="Resources">
+<input id="hours" placeholder="Hours per week">
+<input id="income" placeholder="Income target">
+<input id="currency" placeholder="Currency">
+
+<button class="generateBtn" onclick="generate()">Generate Plan</button>
+
+</div>
 
 <div id="inputBar">
 
@@ -126,7 +216,7 @@ color:white;
 
 <input id="question" placeholder="Ask follow-up question">
 
-<input type="file" id="imageUpload" accept="image/*" hidden>
+<input type="file" id="imageUpload" hidden>
 
 </div>
 
@@ -138,33 +228,53 @@ color:white;
 
 <script>
 
-let history=[]
+let currentChatId=null
 
 const messages=document.getElementById("messages")
-
-function cleanAI(text){
-
-return text
-.replace(/\*\*/g,"")
-.replace(/#{1,6}/g,"")
-
-}
+const chatList=document.getElementById("chatList")
 
 function addMessage(content,type){
 
 const div=document.createElement("div")
 div.className="message "+type
-
 div.innerText=content
 
 messages.appendChild(div)
-
 messages.scrollTop=messages.scrollHeight
 
 }
 
-function uploadImage(){
-document.getElementById("imageUpload").click()
+async function generate(){
+
+messages.innerHTML=""
+
+const res=await fetch("/plan",{
+
+method:"POST",
+headers:{"Content-Type":"application/json"},
+
+body:JSON.stringify({
+
+idea:idea.value,
+why:why.value,
+skills:skills.value,
+resources:resources.value,
+hours:hours.value,
+incomeGoal:income.value,
+currency:currency.value
+
+})
+
+})
+
+const data=await res.json()
+
+currentChatId=data.chatId
+
+addMessage(data.reply,"ai")
+
+loadChats()
+
 }
 
 async function sendQuestion(){
@@ -176,37 +286,69 @@ if(!question) return
 
 addMessage(question,"user")
 
-history.push({
-role:"user",
-content:question
-})
-
 input.value=""
 
 const formData=new FormData()
 
+formData.append("chatId",currentChatId)
 formData.append("question",question)
-formData.append("messages",JSON.stringify(history))
 
-const res=await fetch("/followup",{
-method:"POST",
-body:formData
-})
+const res=await fetch("/followup",{method:"POST",body:formData})
 
 const data=await res.json()
 
-history=data.history
+addMessage(data.reply,"ai")
 
-addMessage(cleanAI(data.reply),"ai")
+}
+
+async function loadChats(){
+
+const res=await fetch("/chats")
+
+let chats=await res.json()
+
+chatList.innerHTML=""
+
+chats.reverse().forEach(chat=>{
+
+const div=document.createElement("div")
+
+div.className="chatItem"
+
+div.innerText=chat.title
+
+div.onclick=()=>{
+
+currentChatId=chat.id
+
+messages.innerHTML=""
+
+chat.messages.forEach(m=>{
+
+addMessage(m.content,m.role==="user"?"user":"ai")
+
+})
+
+}
+
+chatList.appendChild(div)
+
+})
 
 }
 
 function startNew(){
 
 messages.innerHTML=""
-history=[]
+document.getElementById("formPage").style.display="block"
 
 }
+
+function uploadImage(){
+document.getElementById("imageUpload").click()
+}
+
+loadChats()
 
 </script>
 
