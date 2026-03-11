@@ -262,32 +262,15 @@ return text
 
 }
 
-function typeWriter(text){
-
-let i=0
+function addAI(text){
 
 const div=document.createElement("div")
 div.className="message ai"
+div.innerHTML=formatAI(text)
 
 messages.appendChild(div)
 
-function type(){
-
-if(i<text.length){
-
-div.innerHTML+=text.charAt(i)
-
-i++
-
 messages.scrollTop=messages.scrollHeight
-
-setTimeout(type,8)
-
-}
-
-}
-
-type()
 
 }
 
@@ -309,7 +292,7 @@ document.getElementById("formPage").style.display="none"
 
 messages.innerHTML=""
 
-typeWriter("Generating plan...")
+addAI("Generating plan...")
 
 const res=await fetch("/plan",{
 
@@ -336,7 +319,7 @@ messages.innerHTML=""
 
 currentChatId=data.chatId
 
-typeWriter(formatAI(data.reply))
+addAI(data.reply)
 
 loadChats()
 
@@ -370,7 +353,7 @@ const res=await fetch("/followup",{method:"POST",body:formData})
 
 const data=await res.json()
 
-typeWriter(formatAI(data.reply))
+addAI(data.reply)
 
 document.getElementById("imageUpload").value=""
 
@@ -448,7 +431,7 @@ messages.innerHTML=""
 chat.messages.forEach(m=>{
 
 if(m.role==="user") addUser(m.content)
-else typeWriter(formatAI(m.content))
+else addAI(m.content)
 
 })
 
