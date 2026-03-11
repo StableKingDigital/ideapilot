@@ -41,19 +41,21 @@ border-radius:6px;
 margin-bottom:8px;
 display:flex;
 justify-content:space-between;
+align-items:center;
 cursor:pointer;
 position:relative;
 }
 
 .menu{
 cursor:pointer;
+padding:4px 8px;
 }
 
 .menuDropdown{
 display:none;
 position:absolute;
 right:10px;
-top:35px;
+top:32px;
 background:#020617;
 border:1px solid #334155;
 border-radius:6px;
@@ -113,6 +115,7 @@ max-width:700px;
 padding:14px;
 border-radius:10px;
 line-height:1.6;
+white-space:pre-wrap;
 }
 
 .ai{
@@ -171,8 +174,6 @@ cursor:pointer;
 color:white;
 }
 
-/* IDEA FORM */
-
 #ideaForm{
 padding:40px;
 max-width:600px;
@@ -220,11 +221,9 @@ cursor:pointer;
 <div id="main">
 
 <div id="modeBar">
-
 <button class="modeBtn active" onclick="setMode('idea',this)">Idea</button>
 <button class="modeBtn" onclick="setMode('research',this)">Research</button>
 <button class="modeBtn" onclick="setMode('build',this)">Build</button>
-
 </div>
 
 <div id="messages"></div>
@@ -248,11 +247,8 @@ cursor:pointer;
 <div id="inputBar">
 
 <div id="inputContainer">
-
 <div id="toolsBtn" onclick="document.getElementById('imageUpload').click()">+</div>
-
 <input id="question" placeholder="Ask follow-up question">
-
 </div>
 
 <button id="send" onclick="sendMessage()">Send</button>
@@ -270,6 +266,17 @@ let currentMode="idea"
 let pendingImage=null
 
 const messages=document.getElementById("messages")
+const chatList=document.getElementById("chatList")
+
+function cleanAI(text){
+
+return text
+.replace(/\*\*/g,"")
+.replace(/###/g,"")
+.replace(/##/g,"")
+.replace(/#/g,"")
+
+}
 
 function setMode(mode,btn){
 
@@ -283,9 +290,12 @@ btn.classList.add("active")
 
 function addAI(text){
 
+text = cleanAI(text)
+
 const div=document.createElement("div")
 div.className="message ai"
 div.innerText=text
+
 messages.appendChild(div)
 
 messages.scrollTop=messages.scrollHeight
@@ -297,6 +307,7 @@ function addUser(text){
 const div=document.createElement("div")
 div.className="message user"
 div.innerText=text
+
 messages.appendChild(div)
 
 messages.scrollTop=messages.scrollHeight
@@ -312,6 +323,7 @@ const img=document.createElement("img")
 img.src=src
 
 div.appendChild(img)
+
 messages.appendChild(div)
 
 }
@@ -327,9 +339,7 @@ pendingImage=file
 const reader=new FileReader()
 
 reader.onload=function(e){
-
 addUserImage(e.target.result)
-
 }
 
 reader.readAsDataURL(file)
@@ -369,6 +379,8 @@ currentChatId=data.chatId
 
 addAI(data.reply)
 
+loadChats()
+
 }
 
 async function sendMessage(){
@@ -402,6 +414,98 @@ addAI(data.reply)
 
 }
 
+async function loadChats(){
+
+const res=await fetch("/chats")
+
+const chats=await res.json()
+
+chatList.innerHTML=""
+
+chats.reverse().forEach(chat=>{
+
+const div=document.createElement("div")
+div.className="chatItem"
+
+const title=document.createElement("span")
+title.innerText=chat.title || "Untitled Chat"
+
+const menu=document.createElement("div")
+menu.className="menu"
+menu.innerText="⋯"
+
+const dropdown=document.createElement("div")
+dropdown.className="menuDropdown"
+
+const rename=document.createElement("button")
+rename.innerText="Rename"
+
+rename.onclick=()=>{
+
+const newTitle=prompt("New title")
+
+fetch("/rename-chat",{
+
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id:chat.id,title:newTitle})
+
+}).then(loadChats)
+
+}
+
+const del=document.createElement("button")
+del.innerText="Delete"
+
+del.onclick=()=>{
+
+fetch("/delete-chat",{
+
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id:chat.id})
+
+}).then(loadChats)
+
+}
+
+dropdown.appendChild(rename)
+dropdown.appendChild(del)
+
+menu.onclick=(e)=>{
+
+e.stopPropagation()
+
+dropdown.style.display =
+dropdown.style.display==="flex" ? "none" : "flex"
+
+}
+
+div.appendChild(title)
+div.appendChild(menu)
+div.appendChild(dropdown)
+
+div.onclick=()=>{
+
+currentChatId=chat.id
+
+messages.innerHTML=""
+
+chat.messages.forEach(m=>{
+
+if(m.role==="user") addUser(m.content)
+else addAI(m.content)
+
+})
+
+}
+
+chatList.appendChild(div)
+
+})
+
+}
+
 function startNew(){
 
 messages.innerHTML=""
@@ -409,6 +513,8 @@ messages.innerHTML=""
 document.getElementById("ideaForm").style.display="block"
 
 }
+
+loadChats()
 
 </script>
 
