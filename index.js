@@ -1,88 +1,87 @@
 require("dotenv").config()
 
-const express = require("express")
-const multer = require("multer")
-const path = require("path")
-const { OpenAI } = require("openai")
+const express=require("express")
+const multer=require("multer")
+const path=require("path")
+const {OpenAI}=require("openai")
 
-const app = express()
-const upload = multer()
-
-const openai = new OpenAI({
-apiKey: process.env.OPENAI_API_KEY
-})
+const app=express()
+const upload=multer()
 
 app.use(express.json())
 app.use(express.static(path.join(__dirname)))
 
-const PORT = process.env.PORT || 3000
+const openai=new OpenAI({
+apiKey:process.env.OPENAI_API_KEY
+})
 
-let chats = {}
+const PORT=process.env.PORT||3000
 
-function createId(){
-return Math.random().toString(36).substring(2,10)
+let chats={}
+
+function id(){
+return Math.random().toString(36).substring(2,9)
 }
 
-function getSystemPrompt(mode){
+function systemPrompt(mode){
 
-let base = `
+let text=`
 You are IdeaPilot.
 
-IdeaPilot helps people turn ideas into real businesses.
+IdeaPilot helps users turn ideas into real businesses.
 
-Write clear structured sections with titles.
-Use paragraphs and lists.
-Do not use markdown symbols like ** or ---.
+Important rules:
 
-If the user uploads an image:
-- describe what you see
-- explain branding or business opportunity
-- connect the image to their idea.
+• When answering follow-up questions DO NOT restart the entire plan.
+• Continue the previous discussion logically.
+• Only answer the specific follow-up.
+
+Use clean paragraphs and numbered steps.
+Do not output HTML like <br>.
+Do not output markdown like **.
 `
 
 if(mode==="research"){
-base += " Focus on market research, trends, competitors."
+text+=" Focus on market research and competitors."
 }
 
 if(mode==="build"){
-base += " Focus on execution steps and launch strategy."
+text+=" Focus on execution and launching the business."
 }
 
-return base
+return text
 }
 
-app.post("/plan", async (req,res)=>{
+app.post("/plan",async(req,res)=>{
 
 try{
 
-const id=createId()
+const chatId=id()
 
 const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
 
-const system=getSystemPrompt("idea")
-
 const prompt=`
-User Idea: ${idea}
+Idea: ${idea}
 Why: ${why}
 Skills: ${skills}
 Resources: ${resources}
-Hours: ${hours}
-Income Goal: ${incomeGoal} ${currency}
+Hours per week: ${hours}
+Income goal: ${incomeGoal} ${currency}
 
-Create a structured startup direction plan.
+Create a structured startup plan.
 `
 
-const completion = await openai.chat.completions.create({
+const completion=await openai.chat.completions.create({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:system},
+{role:"system",content:systemPrompt("idea")},
 {role:"user",content:prompt}
 ]
 })
 
 const reply=completion.choices[0].message.content
 
-chats[id]={
+chats[chatId]={
 title:idea,
 messages:[
 {role:"user",content:prompt},
@@ -90,15 +89,12 @@ messages:[
 ]
 }
 
-res.json({
-chatId:id,
-reply
-})
+res.json({chatId,reply})
 
 }catch(e){
 
 console.log(e)
-res.json({reply:"Error generating plan"})
+res.json({reply:"AI error"})
 
 }
 
@@ -114,25 +110,18 @@ if(!chats[chatId]){
 return res.json({reply:"Chat not found"})
 }
 
-const system=getSystemPrompt(mode)
-
-let history = chats[chatId].messages.map(m=>({
-role:m.role,
-content:m.content
-}))
-
-let userMessage
+let message
 
 if(req.file){
 
 const base64=req.file.buffer.toString("base64")
 
-userMessage={
+message={
 role:"user",
 content:[
 {
 type:"text",
-text:question || "Analyze this image"
+text:question||"Analyze this image"
 },
 {
 type:"image_url",
@@ -145,33 +134,26 @@ url:`data:${req.file.mimetype};base64,${base64}`
 
 }else{
 
-userMessage={
+message={
 role:"user",
 content:question
 }
 
 }
 
-const completion = await openai.chat.completions.create({
+const completion=await openai.chat.completions.create({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:system},
-...history,
-userMessage
+{role:"system",content:systemPrompt(mode)},
+...chats[chatId].messages,
+message
 ]
 })
 
 const reply=completion.choices[0].message.content
 
-chats[chatId].messages.push({
-role:"user",
-content:question
-})
-
-chats[chatId].messages.push({
-role:"assistant",
-content:reply
-})
+chats[chatId].messages.push({role:"user",content:question})
+chats[chatId].messages.push({role:"assistant",content:reply})
 
 res.json({reply})
 
@@ -179,7 +161,6 @@ res.json({reply})
 
 console.log(e)
 res.json({reply:"AI error"})
-
 }
 
 })
@@ -199,8 +180,19 @@ res.json(list)
 app.post("/delete-chat",(req,res)=>{
 
 const {id}=req.body
-
 delete chats[id]
+
+res.json({ok:true})
+
+})
+
+app.post("/rename-chat",(req,res)=>{
+
+const {id,title}=req.body
+
+if(chats[id]){
+chats[id].title=title
+}
 
 res.json({ok:true})
 

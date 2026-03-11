@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <title>IdeaPilot</title>
 
 <style>
@@ -41,11 +42,6 @@ border-radius:6px;
 margin-bottom:8px;
 display:flex;
 justify-content:space-between;
-cursor:pointer;
-}
-
-.deleteBtn{
-color:#f87171;
 cursor:pointer;
 }
 
@@ -167,6 +163,7 @@ color:white;
 }
 
 </style>
+
 </head>
 
 <body>
@@ -256,7 +253,6 @@ function formatAI(text){
 
 return text
 .replace(/\*\*/g,"")
-.replace(/^- /gm,"")
 .replace(/\n\n/g,"<br><br>")
 .replace(/\n/g,"<br>")
 
@@ -328,9 +324,7 @@ loadChats()
 async function sendQuestion(){
 
 const input=document.getElementById("question")
-
 const question=input.value.trim()
-
 const file=document.getElementById("imageUpload").files[0]
 
 if(!question && !file) return
@@ -370,7 +364,6 @@ const reader=new FileReader()
 reader.onload=function(e){
 
 const img=document.createElement("img")
-
 img.src=e.target.result
 
 messages.appendChild(img)
@@ -386,7 +379,6 @@ reader.readAsDataURL(file)
 async function loadChats(){
 
 const res=await fetch("/chats")
-
 const chats=await res.json()
 
 chatList.innerHTML=""
@@ -399,28 +391,42 @@ div.className="chatItem"
 const title=document.createElement("span")
 title.innerText=chat.title
 
-const del=document.createElement("span")
-del.innerText="🗑"
-del.className="deleteBtn"
+const menu=document.createElement("span")
+menu.innerText="⋯"
+menu.style.cursor="pointer"
 
-del.onclick=async(e)=>{
+menu.onclick=(e)=>{
 
 e.stopPropagation()
 
-await fetch("/delete-chat",{
+const action=prompt("Type rename or delete")
 
+if(action==="delete"){
+
+fetch("/delete-chat",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({id:chat.id})
+}).then(loadChats)
 
-})
+}
 
-loadChats()
+if(action==="rename"){
+
+const newTitle=prompt("New title")
+
+fetch("/rename-chat",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id:chat.id,title:newTitle})
+}).then(loadChats)
+
+}
 
 }
 
 div.appendChild(title)
-div.appendChild(del)
+div.appendChild(menu)
 
 div.onclick=()=>{
 
