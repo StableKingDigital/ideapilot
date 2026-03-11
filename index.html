@@ -41,24 +41,22 @@ border-radius:6px;
 margin-bottom:8px;
 display:flex;
 justify-content:space-between;
-align-items:center;
 cursor:pointer;
 position:relative;
 }
 
 .menu{
 cursor:pointer;
-padding:4px 6px;
 }
 
 .menuDropdown{
+display:none;
 position:absolute;
-right:0;
-top:32px;
+right:10px;
+top:35px;
 background:#020617;
 border:1px solid #334155;
 border-radius:6px;
-display:none;
 flex-direction:column;
 }
 
@@ -173,6 +171,32 @@ cursor:pointer;
 color:white;
 }
 
+/* IDEA FORM */
+
+#ideaForm{
+padding:40px;
+max-width:600px;
+}
+
+#ideaForm input{
+width:100%;
+margin-bottom:10px;
+padding:10px;
+background:#020617;
+border:1px solid #334155;
+color:white;
+border-radius:6px;
+}
+
+#generateBtn{
+background:#22c55e;
+border:none;
+padding:12px;
+border-radius:6px;
+color:white;
+cursor:pointer;
+}
+
 </style>
 </head>
 
@@ -205,6 +229,22 @@ color:white;
 
 <div id="messages"></div>
 
+<div id="ideaForm">
+
+<h2>Clarify Your Idea</h2>
+
+<input id="idea" placeholder="Your idea">
+<input id="why" placeholder="Why it matters">
+<input id="skills" placeholder="Your skills">
+<input id="resources" placeholder="Resources">
+<input id="hours" placeholder="Hours per week">
+<input id="income" placeholder="Income goal">
+<input id="currency" placeholder="Currency">
+
+<button id="generateBtn" onclick="generatePlan()">Generate Plan</button>
+
+</div>
+
 <div id="inputBar">
 
 <div id="inputContainer">
@@ -230,15 +270,12 @@ let currentMode="idea"
 let pendingImage=null
 
 const messages=document.getElementById("messages")
-const chatList=document.getElementById("chatList")
 
 function setMode(mode,btn){
 
 currentMode=mode
 
-document.querySelectorAll(".modeBtn").forEach(b=>{
-b.classList.remove("active")
-})
+document.querySelectorAll(".modeBtn").forEach(b=>b.classList.remove("active"))
 
 btn.classList.add("active")
 
@@ -249,7 +286,6 @@ function addAI(text){
 const div=document.createElement("div")
 div.className="message ai"
 div.innerText=text
-
 messages.appendChild(div)
 
 messages.scrollTop=messages.scrollHeight
@@ -261,7 +297,6 @@ function addUser(text){
 const div=document.createElement("div")
 div.className="message user"
 div.innerText=text
-
 messages.appendChild(div)
 
 messages.scrollTop=messages.scrollHeight
@@ -277,7 +312,6 @@ const img=document.createElement("img")
 img.src=src
 
 div.appendChild(img)
-
 messages.appendChild(div)
 
 }
@@ -302,10 +336,44 @@ reader.readAsDataURL(file)
 
 })
 
+async function generatePlan(){
+
+document.getElementById("ideaForm").style.display="none"
+
+addAI("Generating startup plan...")
+
+const res=await fetch("/plan",{
+
+method:"POST",
+headers:{"Content-Type":"application/json"},
+
+body:JSON.stringify({
+
+idea:idea.value,
+why:why.value,
+skills:skills.value,
+resources:resources.value,
+hours:hours.value,
+incomeGoal:income.value,
+currency:currency.value
+
+})
+
+})
+
+const data=await res.json()
+
+messages.innerHTML=""
+
+currentChatId=data.chatId
+
+addAI(data.reply)
+
+}
+
 async function sendMessage(){
 
-const input=document.getElementById("question")
-const text=input.value.trim()
+const text=document.getElementById("question").value.trim()
 
 if(!text && !pendingImage) return
 
@@ -323,16 +391,10 @@ formData.append("file",pendingImage)
 
 }
 
-input.value=""
-
+document.getElementById("question").value=""
 pendingImage=null
 
-const res=await fetch("/followup",{
-
-method:"POST",
-body:formData
-
-})
+const res=await fetch("/followup",{method:"POST",body:formData})
 
 const data=await res.json()
 
@@ -340,105 +402,13 @@ addAI(data.reply)
 
 }
 
-async function loadChats(){
-
-const res=await fetch("/chats")
-const chats=await res.json()
-
-chatList.innerHTML=""
-
-chats.reverse().forEach(chat=>{
-
-const div=document.createElement("div")
-div.className="chatItem"
-
-const title=document.createElement("span")
-title.innerText=chat.title
-
-const menu=document.createElement("div")
-menu.className="menu"
-menu.innerText="⋯"
-
-const dropdown=document.createElement("div")
-dropdown.className="menuDropdown"
-
-const rename=document.createElement("button")
-rename.innerText="Rename"
-
-rename.onclick=()=>{
-
-const newTitle=prompt("New title")
-
-fetch("/rename-chat",{
-
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({id:chat.id,title:newTitle})
-
-}).then(loadChats)
-
-}
-
-const del=document.createElement("button")
-del.innerText="Delete"
-
-del.onclick=()=>{
-
-fetch("/delete-chat",{
-
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({id:chat.id})
-
-}).then(loadChats)
-
-}
-
-dropdown.appendChild(rename)
-dropdown.appendChild(del)
-
-menu.onclick=(e)=>{
-
-e.stopPropagation()
-
-dropdown.style.display=
-dropdown.style.display==="flex"
-?"none":"flex"
-
-}
-
-div.appendChild(title)
-div.appendChild(menu)
-div.appendChild(dropdown)
-
-div.onclick=()=>{
-
-currentChatId=chat.id
-
-messages.innerHTML=""
-
-chat.messages.forEach(m=>{
-
-if(m.role==="user") addUser(m.content)
-else addAI(m.content)
-
-})
-
-}
-
-chatList.appendChild(div)
-
-})
-
-}
-
 function startNew(){
 
 messages.innerHTML=""
 
-}
+document.getElementById("ideaForm").style.display="block"
 
-loadChats()
+}
 
 </script>
 
