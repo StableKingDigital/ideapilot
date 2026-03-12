@@ -14,19 +14,71 @@ margin:0;
 font-family:Arial;
 background:#020617;
 color:white;
-}
-
-/* FORM SCREEN */
-
-#formScreen{
 display:flex;
 height:100vh;
-align-items:center;
-justify-content:center;
 }
 
+/* SIDEBAR */
+
+.sidebar{
+width:260px;
+background:#020617;
+border-right:1px solid #1e293b;
+padding:20px;
+overflow-y:auto;
+}
+
+.logo{
+font-size:20px;
+font-weight:bold;
+margin-bottom:20px;
+}
+
+.newChat{
+background:#22c55e;
+border:none;
+padding:10px;
+width:100%;
+border-radius:6px;
+cursor:pointer;
+margin-bottom:20px;
+color:white;
+}
+
+.chatItem{
+background:#0f172a;
+padding:10px;
+border-radius:6px;
+margin-bottom:8px;
+cursor:pointer;
+}
+
+/* MAIN */
+
+.main{
+flex:1;
+display:flex;
+flex-direction:column;
+}
+
+/* TOPBAR */
+
+.topbar{
+height:60px;
+background:#020617;
+border-bottom:1px solid #1e293b;
+display:flex;
+align-items:center;
+padding:0 20px;
+font-weight:bold;
+cursor:pointer;
+}
+
+/* FORM */
+
 .formBox{
-width:600px;
+padding:30px;
+max-width:700px;
 }
 
 input{
@@ -39,65 +91,22 @@ color:white;
 border-radius:6px;
 }
 
-button{
-margin-top:15px;
+.generateBtn{
+margin-top:20px;
 padding:12px;
 background:#22c55e;
 border:none;
 border-radius:6px;
 cursor:pointer;
-}
-
-/* DASHBOARD */
-
-#dashboardScreen{
-display:none;
-height:100vh;
-}
-
-.topbar{
-height:60px;
-background:#020617;
-border-bottom:1px solid #1e293b;
-display:flex;
-align-items:center;
-padding:0 20px;
-cursor:pointer;
-font-weight:bold;
-}
-
-/* SIDEBAR */
-
-#sidebar{
-position:fixed;
-top:0;
-left:-260px;
-width:260px;
-height:100%;
-background:#020617;
-border-right:1px solid #1e293b;
-padding:20px;
-transition:0.3s;
-}
-
-#sidebar.open{
-left:0;
-}
-
-.menuItem{
-padding:10px;
-background:#0f172a;
-border-radius:6px;
-margin-top:10px;
-cursor:pointer;
+color:white;
 }
 
 /* CHAT */
 
-#chatWindow{
+.chatWindow{
+flex:1;
 padding:30px;
 overflow:auto;
-height:calc(100vh - 60px);
 }
 
 .aiMessage{
@@ -110,25 +119,70 @@ line-height:1.6;
 
 /* MOBILE */
 
+.mobileMenu{
+display:none;
+margin-right:10px;
+font-size:20px;
+}
+
 @media (max-width:768px){
 
-.formBox{
-width:90%;
+.sidebar{
+position:fixed;
+left:-260px;
+top:0;
+height:100%;
+transition:0.3s;
+z-index:1000;
+}
+
+.sidebar.open{
+left:0;
+}
+
+.mobileMenu{
+display:block;
+}
+
+body{
+flex-direction:column;
 }
 
 }
 
 </style>
-
 </head>
 
 <body>
 
-<!-- FORM SCREEN -->
+<div class="sidebar" id="sidebar">
 
-<div id="formScreen">
+<div class="logo">IdeaPilot</div>
 
-<div class="formBox">
+<button class="newChat" onclick="newChat()">+ New Chat</button>
+
+<div>Your Chats</div>
+
+<div id="chatList"></div>
+
+<div style="margin-top:20px">
+<div class="chatItem">Idea</div>
+<div class="chatItem">Research</div>
+<div class="chatItem">Build</div>
+</div>
+
+</div>
+
+<div class="main">
+
+<div class="topbar" onclick="toggleSidebar()">
+
+<span class="mobileMenu">☰</span>
+IdeaPilot
+
+</div>
+
+<div class="formBox" id="formSection">
 
 <h2>Clarify Your Idea</h2>
 
@@ -136,7 +190,7 @@ width:90%;
 
 <input id="why" placeholder="Why it matters">
 
-<input id="skills" placeholder="Your skills">
+<input id="skills" placeholder="Skills">
 
 <input id="resources" placeholder="Resources">
 
@@ -144,45 +198,32 @@ width:90%;
 
 <input id="budget" placeholder="Budget">
 
-<button onclick="generatePlan()">Generate Plan</button>
+<button class="generateBtn" onclick="generatePlan()">Generate Plan</button>
 
 </div>
 
-</div>
-
-<!-- DASHBOARD -->
-
-<div id="dashboardScreen">
-
-<div class="topbar" onclick="toggleMenu()">
-☰ IdeaPilot
-</div>
-
-<div id="sidebar">
-
-<div class="menuItem" onclick="newChat()">+ New Chat</div>
-
-<div style="margin-top:20px;font-size:14px;opacity:0.7">Your Chats</div>
-
-<div id="chatList"></div>
-
-<div style="margin-top:30px">
-
-<div class="menuItem">Idea</div>
-<div class="menuItem">Research</div>
-<div class="menuItem">Build</div>
-
-</div>
-
-</div>
-
-<div id="chatWindow"></div>
+<div class="chatWindow" id="chatWindow"></div>
 
 </div>
 
 <script>
 
-/* GENERATE PLAN */
+function toggleSidebar(){
+
+document.getElementById("sidebar").classList.toggle("open")
+
+}
+
+/* NEW CHAT */
+
+function newChat(){
+
+document.getElementById("formSection").style.display="block"
+document.getElementById("chatWindow").innerHTML=""
+
+}
+
+/* GENERATE */
 
 async function generatePlan(){
 
@@ -193,10 +234,11 @@ const resources = document.getElementById("resources").value
 const hours = document.getElementById("hours").value
 const budget = document.getElementById("budget").value
 
-const res = await fetch("/generate",{
+const res = await fetch("/plan",{
 
 method:"POST",
 headers:{'Content-Type':'application/json'},
+
 body:JSON.stringify({
 idea,
 why,
@@ -210,46 +252,25 @@ budget
 
 const data = await res.json()
 
-document.getElementById("formScreen").style.display="none"
-document.getElementById("dashboardScreen").style.display="block"
+document.getElementById("formSection").style.display="none"
 
-document.getElementById("chatWindow").innerHTML =
-"<div class='aiMessage'>" + data.reply + "</div>"
+document.getElementById("chatWindow").innerHTML=
+"<div class='aiMessage'>"+data.reply+"</div>"
 
-addChatTitle(idea)
-
-}
-
-/* SIDEBAR */
-
-function toggleMenu(){
-
-document.getElementById("sidebar").classList.toggle("open")
-
-}
-
-/* NEW CHAT */
-
-function newChat(){
-
-document.getElementById("chatWindow").innerHTML=""
-
-document.getElementById("formScreen").style.display="flex"
-document.getElementById("dashboardScreen").style.display="none"
+addChat(idea)
 
 }
 
 /* CHAT TITLES */
 
-function addChatTitle(title){
+function addChat(title){
 
 const chatList = document.getElementById("chatList")
 
 const div = document.createElement("div")
 
-div.className="menuItem"
-
-div.innerText = title
+div.className="chatItem"
+div.innerText=title
 
 chatList.prepend(div)
 
