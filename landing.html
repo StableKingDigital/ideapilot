@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <title>IdeaPilot</title>
 
 <style>
@@ -8,7 +9,7 @@
 body{
 margin:0;
 font-family:Arial, Helvetica, sans-serif;
-background:#020617;
+background:linear-gradient(180deg,#020617,#020617,#0f172a);
 color:white;
 }
 
@@ -18,34 +19,47 @@ margin:auto;
 padding:60px 20px;
 }
 
+/* HERO */
+
 .hero{
 text-align:center;
-padding-top:80px;
-padding-bottom:80px;
+padding-top:100px;
+padding-bottom:100px;
 }
 
 .hero h1{
-font-size:48px;
+font-size:54px;
 margin-bottom:20px;
+background:linear-gradient(90deg,#22c55e,#38bdf8);
+-webkit-background-clip:text;
+color:transparent;
 }
 
 .hero p{
 font-size:20px;
 color:#94a3b8;
-max-width:700px;
+max-width:720px;
 margin:auto;
+line-height:1.6;
 }
 
 .startBtn{
 margin-top:40px;
 background:#22c55e;
 border:none;
-padding:16px 40px;
+padding:16px 45px;
 font-size:18px;
 border-radius:8px;
 cursor:pointer;
 color:white;
+transition:0.2s;
 }
+
+.startBtn:hover{
+background:#16a34a;
+}
+
+/* SECTIONS */
 
 .section{
 padding:70px 0;
@@ -54,9 +68,11 @@ border-top:1px solid #1e293b;
 
 .section h2{
 text-align:center;
-font-size:32px;
-margin-bottom:40px;
+font-size:34px;
+margin-bottom:45px;
 }
+
+/* GRID */
 
 .grid{
 display:grid;
@@ -64,45 +80,77 @@ grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
 gap:30px;
 }
 
+/* CARDS */
+
 .card{
 background:#0f172a;
-padding:25px;
-border-radius:10px;
+padding:28px;
+border-radius:12px;
+border:1px solid #1e293b;
+transition:0.2s;
+}
+
+.card:hover{
+transform:translateY(-4px);
+border-color:#22c55e;
 }
 
 .card h3{
 margin-top:0;
+margin-bottom:12px;
 }
+
+.card p{
+color:#94a3b8;
+line-height:1.5;
+}
+
+/* EXAMPLE BOX */
 
 .example{
 background:#0f172a;
-padding:25px;
-border-radius:10px;
-max-width:700px;
+padding:30px;
+border-radius:12px;
+border:1px solid #1e293b;
+max-width:720px;
 margin:auto;
 text-align:center;
 }
 
+.example p{
+font-size:18px;
+line-height:1.6;
+color:#cbd5f5;
+}
+
+/* FOOTER */
+
 .footer{
 border-top:1px solid #1e293b;
-padding:30px;
+padding:40px;
 text-align:center;
 color:#94a3b8;
-margin-top:60px;
+margin-top:80px;
+}
+
+.footer b{
+color:white;
 }
 
 </style>
+
 </head>
 
 <body>
+
 
 <div class="container hero">
 
 <h1>IdeaPilot</h1>
 
 <p>
-Turn ideas into real execution paths.  
-Describe your idea and IdeaPilot will help you clarify it, validate it, and build a realistic path forward.
+Turn ideas into clear execution paths.  
+Describe any idea — business, side hustle, brand, or project — and IdeaPilot will help you analyze it, structure it, and move it forward.
 </p>
 
 <button class="startBtn" onclick="window.location='/dashboard'">
@@ -120,23 +168,23 @@ Start Using IdeaPilot
 <div class="grid">
 
 <div class="card">
-<h3>1 — Describe Your Idea</h3>
+<h3>Share Your Idea</h3>
 <p>
-Share a business idea, side hustle, project, or opportunity you are thinking about.
+Start by describing an idea, opportunity, or concept you are thinking about exploring.
 </p>
 </div>
 
 <div class="card">
-<h3>2 — Get a Direction Plan</h3>
+<h3>Get AI Direction</h3>
 <p>
-IdeaPilot analyzes your idea and generates a structured execution path.
+IdeaPilot analyzes your idea and generates a structured direction plan with realistic steps.
 </p>
 </div>
 
 <div class="card">
-<h3>3 — Refine With AI</h3>
+<h3>Refine With AI</h3>
 <p>
-Ask follow-up questions, explore strategy, research markets, and improve your idea.
+Ask follow-up questions, explore strategies, analyze markets, and improve your plan.
 </p>
 </div>
 
@@ -154,22 +202,22 @@ Ask follow-up questions, explore strategy, research markets, and improve your id
 
 <div class="card">
 <h3>Business Ideas</h3>
-<p>Validate startup concepts and business opportunities.</p>
+<p>Explore startup concepts and validate business opportunities.</p>
 </div>
 
 <div class="card">
 <h3>Side Hustles</h3>
-<p>Find realistic paths to build additional income streams.</p>
+<p>Find practical ways to build additional income streams.</p>
 </div>
 
 <div class="card">
 <h3>Brand Concepts</h3>
-<p>Explore clothing brands, product ideas, or digital businesses.</p>
+<p>Develop product ideas, clothing brands, and digital businesses.</p>
 </div>
 
 <div class="card">
-<h3>Market Research</h3>
-<p>Understand demand, competitors, and opportunities.</p>
+<h3>Market Exploration</h3>
+<p>Understand demand, competition, and potential growth paths.</p>
 </div>
 
 </div>
@@ -185,11 +233,11 @@ Ask follow-up questions, explore strategy, research markets, and improve your id
 <div class="example">
 
 <p>
-"I want to start an electronics business shipping products from Dubai to Sierra Leone."
+"I have an idea but I'm not sure how to turn it into a real plan."
 </p>
 
 <p style="color:#94a3b8">
-IdeaPilot will analyze the idea and generate a structured plan with actions, risks, and growth strategy.
+IdeaPilot helps transform ideas into structured direction plans with actions, risks, and growth paths.
 </p>
 
 </div>
@@ -209,6 +257,7 @@ Created by <b>Stable King Alf</b>
 </p>
 
 </div>
+
 
 </body>
 </html>
