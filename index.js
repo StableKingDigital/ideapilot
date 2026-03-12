@@ -14,7 +14,6 @@ const openai = new OpenAI({
 const upload = multer({ storage: multer.memoryStorage() })
 
 app.use(express.json())
-app.use(express.static(path.join(__dirname)))
 
 let chats = {}
 
@@ -205,6 +204,10 @@ app.post("/delete-chat",(req,res)=>{
  delete chats[id]
  res.json({status:"deleted"})
 })
+
+
+/* STATIC FILES (moved below routes so landing works) */
+app.use(express.static(path.join(__dirname)))
 
 
 app.listen(PORT,()=>{
