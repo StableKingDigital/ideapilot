@@ -1,12 +1,11 @@
 require("dotenv").config()
-
 const express = require("express")
 const OpenAI = require("openai")
 const multer = require("multer")
 const path = require("path")
 
 const app = express()
-const PORT = 3000
+const PORT = process.env.PORT || 3000
 
 const openai = new OpenAI({
  apiKey: process.env.OPENAI_API_KEY
@@ -209,5 +208,5 @@ app.post("/delete-chat",(req,res)=>{
 
 
 app.listen(PORT,()=>{
- console.log("IdeaPilot running on http://localhost:3000")
+ console.log("IdeaPilot running on http://localhost:"+PORT)
 })
