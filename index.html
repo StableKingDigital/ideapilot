@@ -1,6 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<title>IdeaPilot</title>
+
 <style>
+
+body{
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+background:#020617;
+color:white;
+}
 
 /* MOBILE HEADER */
 
@@ -14,17 +28,17 @@ height:60px;
 background:#020617;
 border-bottom:1px solid #1e293b;
 align-items:center;
-padding:0 15px;
+padding:0 16px;
 z-index:1000;
 }
 
 .menuBtn{
+font-size:22px;
 background:none;
 border:none;
 color:white;
-font-size:22px;
 cursor:pointer;
-margin-right:15px;
+margin-right:12px;
 }
 
 .mobileTitle{
@@ -32,8 +46,89 @@ font-size:18px;
 font-weight:bold;
 }
 
+/* SIDEBAR */
 
-/* MOBILE RESPONSIVE */
+.sidebar{
+width:260px;
+background:#020617;
+position:fixed;
+left:0;
+top:0;
+bottom:0;
+padding:20px;
+border-right:1px solid #1e293b;
+overflow-y:auto;
+}
+
+.logo{
+font-size:22px;
+font-weight:bold;
+margin-bottom:20px;
+}
+
+.newChat{
+background:#22c55e;
+border:none;
+padding:12px;
+width:100%;
+border-radius:6px;
+cursor:pointer;
+margin-bottom:20px;
+}
+
+.chatTitle{
+background:#0f172a;
+padding:10px;
+border-radius:6px;
+margin-bottom:10px;
+cursor:pointer;
+}
+
+/* MAIN AREA */
+
+.main{
+margin-left:260px;
+padding:40px;
+}
+
+/* FORM */
+
+.form{
+max-width:700px;
+margin:auto;
+}
+
+input{
+width:100%;
+padding:12px;
+margin-top:10px;
+background:#020617;
+border:1px solid #1e293b;
+color:white;
+border-radius:6px;
+}
+
+.generateBtn{
+margin-top:20px;
+padding:12px;
+background:#22c55e;
+border:none;
+border-radius:6px;
+cursor:pointer;
+}
+
+/* CHAT */
+
+.chatBox{
+margin-top:40px;
+background:#0f172a;
+padding:20px;
+border-radius:10px;
+white-space:pre-wrap;
+line-height:1.6;
+}
+
+/* MOBILE */
 
 @media (max-width:768px){
 
@@ -41,52 +136,148 @@ font-weight:bold;
 display:flex;
 }
 
-#sidebar{
-position:fixed;
-top:0;
+.sidebar{
 left:-260px;
-height:100%;
-width:260px;
-background:#020617;
 transition:0.3s;
 z-index:1200;
 }
 
-#sidebar.open{
+.sidebar.open{
 left:0;
 }
 
-#main{
-margin-left:0 !important;
+.main{
+margin-left:0;
 padding-top:80px;
 }
 
 }
 
 </style>
+</head>
+
+<body>
+
+<!-- MOBILE HEADER -->
 
 <div class="mobileHeader">
 
 <button class="menuBtn" onclick="toggleSidebar()">☰</button>
 
-<div class="mobileTitle">
-IdeaPilot
+<div class="mobileTitle">IdeaPilot</div>
+
 </div>
+
+<!-- SIDEBAR -->
+
+<div class="sidebar" id="sidebar">
+
+<div class="logo">IdeaPilot</div>
+
+<button class="newChat" onclick="newChat()">+ New Chat</button>
+
+<div id="chatList"></div>
+
+</div>
+
+<!-- MAIN -->
+
+<div class="main">
+
+<div class="form" id="formSection">
+
+<h2>Clarify Your Idea</h2>
+
+<input id="idea" placeholder="Your idea">
+
+<input id="why" placeholder="Why it matters">
+
+<input id="skills" placeholder="Your skills">
+
+<input id="resources" placeholder="Resources">
+
+<input id="hours" placeholder="Hours per week">
+
+<input id="budget" placeholder="Budget">
+
+<button class="generateBtn" onclick="generate()">Generate Plan</button>
+
+</div>
+
+<div id="chatOutput"></div>
 
 </div>
 
 <script>
 
+/* MOBILE SIDEBAR */
+
 function toggleSidebar(){
 
 const sidebar = document.getElementById("sidebar")
 
-if(sidebar.classList.contains("open")){
-sidebar.classList.remove("open")
-}else{
-sidebar.classList.add("open")
+sidebar.classList.toggle("open")
+
 }
+
+/* NEW CHAT */
+
+function newChat(){
+
+document.getElementById("chatOutput").innerHTML = ""
+
+document.getElementById("formSection").style.display="block"
+
+}
+
+/* GENERATE PLAN */
+
+async function generate(){
+
+const idea = document.getElementById("idea").value
+const why = document.getElementById("why").value
+const skills = document.getElementById("skills").value
+const resources = document.getElementById("resources").value
+const hours = document.getElementById("hours").value
+const budget = document.getElementById("budget").value
+
+const res = await fetch("/generate",{
+
+method:"POST",
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({idea,why,skills,resources,hours,budget})
+
+})
+
+const data = await res.json()
+
+document.getElementById("formSection").style.display="none"
+
+document.getElementById("chatOutput").innerHTML = `
+<div class="chatBox">${data.reply}</div>
+`
+
+addChatTitle(idea)
+
+}
+
+/* CHAT TITLES */
+
+function addChatTitle(title){
+
+const chatList = document.getElementById("chatList")
+
+const div = document.createElement("div")
+
+div.className="chatTitle"
+
+div.innerText = title
+
+chatList.prepend(div)
 
 }
 
 </script>
+
+</body>
+</html>
