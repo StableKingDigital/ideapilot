@@ -1,19 +1,6 @@
-<!DOCTYPE html>
-<html>
-<head>
-
-<title>IdeaPilot</title>
-
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-
-body{
-margin:0;
-font-family:Arial, Helvetica, sans-serif;
-background:#020617;
-color:white;
-}
 
 /* MOBILE HEADER */
 
@@ -46,107 +33,7 @@ font-weight:bold;
 }
 
 
-/* LAYOUT */
-
-.wrapper{
-display:flex;
-height:100vh;
-}
-
-/* SIDEBAR */
-
-.sidebar{
-width:260px;
-background:#020617;
-border-right:1px solid #1e293b;
-padding:20px;
-overflow-y:auto;
-}
-
-.logo{
-font-size:22px;
-font-weight:bold;
-margin-bottom:20px;
-}
-
-.newChat{
-background:#22c55e;
-border:none;
-padding:12px;
-width:100%;
-border-radius:6px;
-cursor:pointer;
-margin-bottom:20px;
-color:white;
-}
-
-.chatList{
-margin-top:10px;
-}
-
-.chatItem{
-padding:10px;
-border-radius:6px;
-cursor:pointer;
-margin-bottom:8px;
-background:#0f172a;
-}
-
-/* MAIN */
-
-.main{
-flex:1;
-padding:30px;
-overflow-y:auto;
-}
-
-/* TABS */
-
-.tabs{
-display:flex;
-gap:10px;
-margin-bottom:20px;
-}
-
-.tab{
-background:#0f172a;
-border:none;
-padding:8px 15px;
-border-radius:6px;
-color:white;
-cursor:pointer;
-}
-
-.tab.active{
-background:#22c55e;
-}
-
-/* FORM */
-
-.formBox{
-max-width:600px;
-}
-
-input{
-width:100%;
-padding:12px;
-margin-bottom:10px;
-border-radius:6px;
-border:1px solid #1e293b;
-background:#020617;
-color:white;
-}
-
-button.generate{
-background:#22c55e;
-border:none;
-padding:12px 20px;
-border-radius:6px;
-cursor:pointer;
-color:white;
-}
-
-/* MOBILE */
+/* MOBILE RESPONSIVE */
 
 @media (max-width:768px){
 
@@ -154,36 +41,29 @@ color:white;
 display:flex;
 }
 
-.wrapper{
-flex-direction:column;
-}
-
-.sidebar{
+#sidebar{
 position:fixed;
 top:0;
 left:-260px;
 height:100%;
-z-index:2000;
+width:260px;
+background:#020617;
 transition:0.3s;
+z-index:1200;
 }
 
-.sidebar.open{
+#sidebar.open{
 left:0;
 }
 
-.main{
-padding:80px 20px 20px 20px;
+#main{
+margin-left:0 !important;
+padding-top:80px;
 }
 
 }
 
 </style>
-
-</head>
-
-<body>
-
-<!-- MOBILE HEADER -->
 
 <div class="mobileHeader">
 
@@ -194,66 +74,6 @@ IdeaPilot
 </div>
 
 </div>
-
-
-<div class="wrapper">
-
-<!-- SIDEBAR -->
-
-<div class="sidebar" id="sidebar">
-
-<div class="logo">IdeaPilot</div>
-
-<button class="newChat">+ New Chat</button>
-
-<div>Your Chats</div>
-
-<div class="chatList" id="chatList"></div>
-
-</div>
-
-
-<!-- MAIN CONTENT -->
-
-<div class="main">
-
-<div class="tabs">
-
-<button class="tab active">Idea</button>
-
-<button class="tab">Research</button>
-
-<button class="tab">Build</button>
-
-</div>
-
-
-<h2>Clarify Your Idea</h2>
-
-<div class="formBox">
-
-<input placeholder="Your idea">
-
-<input placeholder="Why it matters">
-
-<input placeholder="Your skills">
-
-<input placeholder="Resources">
-
-<input placeholder="Hours per week">
-
-<input placeholder="Income goal">
-
-<input placeholder="Currency">
-
-<button class="generate">Generate Plan</button>
-
-</div>
-
-</div>
-
-</div>
-
 
 <script>
 
@@ -270,6 +90,3 @@ sidebar.classList.add("open")
 }
 
 </script>
-
-</body>
-</html>
