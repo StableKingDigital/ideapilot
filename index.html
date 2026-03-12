@@ -14,8 +14,24 @@ margin:0;
 font-family:Arial;
 background:#020617;
 color:white;
-display:flex;
-height:100vh;
+}
+
+/* MOBILE HEADER */
+
+.mobileHeader{
+display:none;
+height:60px;
+background:#020617;
+border-bottom:1px solid #1e293b;
+align-items:center;
+padding:0 15px;
+font-weight:bold;
+}
+
+.menuBtn{
+font-size:22px;
+margin-right:10px;
+cursor:pointer;
 }
 
 /* SIDEBAR */
@@ -24,13 +40,15 @@ height:100vh;
 width:260px;
 background:#020617;
 border-right:1px solid #1e293b;
+position:fixed;
+top:0;
+bottom:0;
 padding:20px;
 overflow-y:auto;
 }
 
 .logo{
 font-size:20px;
-font-weight:bold;
 margin-bottom:20px;
 }
 
@@ -42,36 +60,23 @@ width:100%;
 border-radius:6px;
 cursor:pointer;
 margin-bottom:20px;
-color:white;
 }
 
 .chatItem{
 background:#0f172a;
 padding:10px;
 border-radius:6px;
-margin-bottom:8px;
+margin-bottom:10px;
 cursor:pointer;
 }
 
 /* MAIN */
 
 .main{
-flex:1;
+margin-left:260px;
 display:flex;
 flex-direction:column;
-}
-
-/* TOPBAR */
-
-.topbar{
-height:60px;
-background:#020617;
-border-bottom:1px solid #1e293b;
-display:flex;
-align-items:center;
-padding:0 20px;
-font-weight:bold;
-cursor:pointer;
+height:100vh;
 }
 
 /* FORM */
@@ -98,7 +103,6 @@ background:#22c55e;
 border:none;
 border-radius:6px;
 cursor:pointer;
-color:white;
 }
 
 /* CHAT */
@@ -115,23 +119,61 @@ padding:20px;
 border-radius:10px;
 white-space:pre-wrap;
 line-height:1.6;
+margin-bottom:20px;
+}
+
+/* INPUT BAR */
+
+.inputBar{
+border-top:1px solid #1e293b;
+padding:10px;
+display:flex;
+gap:10px;
+}
+
+.inputBar input[type=text]{
+flex:1;
+padding:10px;
+background:#020617;
+border:1px solid #1e293b;
+color:white;
+border-radius:6px;
+}
+
+.sendBtn{
+background:#22c55e;
+border:none;
+padding:10px 20px;
+border-radius:6px;
+cursor:pointer;
+}
+
+/* TABS */
+
+.tabs{
+padding:10px 30px;
+display:flex;
+gap:10px;
+}
+
+.tabBtn{
+background:#0f172a;
+border:none;
+padding:8px 14px;
+border-radius:6px;
+cursor:pointer;
 }
 
 /* MOBILE */
 
-.mobileMenu{
-display:none;
-margin-right:10px;
-font-size:20px;
-}
-
 @media (max-width:768px){
 
+.mobileHeader{
+display:flex;
+}
+
 .sidebar{
-position:fixed;
 left:-260px;
-top:0;
-height:100%;
 transition:0.3s;
 z-index:1000;
 }
@@ -140,20 +182,25 @@ z-index:1000;
 left:0;
 }
 
-.mobileMenu{
-display:block;
-}
-
-body{
-flex-direction:column;
+.main{
+margin-left:0;
 }
 
 }
 
 </style>
+
 </head>
 
 <body>
+
+<div class="mobileHeader">
+
+<span class="menuBtn" onclick="toggleSidebar()">☰</span>
+
+IdeaPilot
+
+</div>
 
 <div class="sidebar" id="sidebar">
 
@@ -166,19 +213,22 @@ flex-direction:column;
 <div id="chatList"></div>
 
 <div style="margin-top:20px">
+
 <div class="chatItem">Idea</div>
 <div class="chatItem">Research</div>
 <div class="chatItem">Build</div>
+
 </div>
 
 </div>
 
 <div class="main">
 
-<div class="topbar" onclick="toggleSidebar()">
+<div class="tabs">
 
-<span class="mobileMenu">☰</span>
-IdeaPilot
+<button class="tabBtn" onclick="switchTab('idea')">Idea</button>
+<button class="tabBtn" onclick="switchTab('research')">Research</button>
+<button class="tabBtn" onclick="switchTab('build')">Build</button>
 
 </div>
 
@@ -204,9 +254,23 @@ IdeaPilot
 
 <div class="chatWindow" id="chatWindow"></div>
 
+<div class="inputBar">
+
+<input type="file" id="imageUpload">
+
+<input type="text" id="followup" placeholder="Ask follow-up question">
+
+<button class="sendBtn" onclick="sendFollowup()">Send</button>
+
+</div>
+
 </div>
 
 <script>
+
+let currentTab = "idea"
+
+/* SIDEBAR */
 
 function toggleSidebar(){
 
@@ -223,6 +287,14 @@ document.getElementById("chatWindow").innerHTML=""
 
 }
 
+/* SWITCH TAB */
+
+function switchTab(tab){
+
+currentTab = tab
+
+}
+
 /* GENERATE */
 
 async function generatePlan(){
@@ -234,9 +306,10 @@ const resources = document.getElementById("resources").value
 const hours = document.getElementById("hours").value
 const budget = document.getElementById("budget").value
 
-const res = await fetch("/plan",{
+const res = await fetch("/generate",{
 
 method:"POST",
+
 headers:{'Content-Type':'application/json'},
 
 body:JSON.stringify({
@@ -254,10 +327,40 @@ const data = await res.json()
 
 document.getElementById("formSection").style.display="none"
 
-document.getElementById("chatWindow").innerHTML=
+document.getElementById("chatWindow").innerHTML +=
 "<div class='aiMessage'>"+data.reply+"</div>"
 
 addChat(idea)
+
+}
+
+/* FOLLOW UP */
+
+async function sendFollowup(){
+
+const message = document.getElementById("followup").value
+
+if(!message) return
+
+const res = await fetch("/followup",{
+
+method:"POST",
+
+headers:{'Content-Type':'application/json'},
+
+body:JSON.stringify({
+message,
+mode:currentTab
+})
+
+})
+
+const data = await res.json()
+
+document.getElementById("chatWindow").innerHTML +=
+"<div class='aiMessage'>"+data.reply+"</div>"
+
+document.getElementById("followup").value=""
 
 }
 
@@ -270,6 +373,7 @@ const chatList = document.getElementById("chatList")
 const div = document.createElement("div")
 
 div.className="chatItem"
+
 div.innerText=title
 
 chatList.prepend(div)
