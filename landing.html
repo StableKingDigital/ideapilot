@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>IdeaPilot</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+background:#0f172a;
+color:white;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+height:100vh;
+text-align:center;
+}
+
+h1{
+font-size:48px;
+margin-bottom:10px;
+}
+
+p{
+font-size:18px;
+color:#94a3b8;
+max-width:600px;
+line-height:1.6;
+}
+
+.startBtn{
+margin-top:40px;
+background:#22c55e;
+border:none;
+padding:16px 30px;
+font-size:18px;
+color:white;
+border-radius:8px;
+cursor:pointer;
+}
+
+.startBtn:hover{
+background:#16a34a;
+}
+
+.features{
+margin-top:60px;
+display:flex;
+gap:40px;
+flex-wrap:wrap;
+justify-content:center;
+max-width:900px;
+}
+
+.feature{
+background:#020617;
+padding:20px;
+border-radius:8px;
+width:240px;
+}
+
+.feature h3{
+margin-top:0;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>IdeaPilot</h1>
+
+<p>
+Turn ideas into real execution paths.
+IdeaPilot helps entrepreneurs, creators, and builders transform ideas into practical business direction.
+</p>
+
+<button class="startBtn" onclick="start()">Start Using IdeaPilot</button>
+
+<div class="features">
+
+<div class="feature">
+<h3>Idea Clarity</h3>
+<p>Turn rough ideas into structured direction and actionable steps.</p>
+</div>
+
+<div class="feature">
+<h3>Research Mode</h3>
+<p>Explore markets, opportunities, and insights around your concept.</p>
+</div>
+
+<div class="feature">
+<h3>Build Mode</h3>
+<p>Get execution plans to move from idea to real-world action.</p>
+</div>
+
+</div>
+
+<script>
+
+function start(){
+window.location.href="/dashboard"
+}
+
+</script>
+
+</body>
+</html>

@@ -1,203 +1,213 @@
 require("dotenv").config()
 
-const express=require("express")
-const multer=require("multer")
-const path=require("path")
-const {OpenAI}=require("openai")
+const express = require("express")
+const OpenAI = require("openai")
+const multer = require("multer")
+const path = require("path")
 
-const app=express()
-const upload=multer()
+const app = express()
+const PORT = 3000
+
+const openai = new OpenAI({
+ apiKey: process.env.OPENAI_API_KEY
+})
+
+const upload = multer({ storage: multer.memoryStorage() })
 
 app.use(express.json())
 app.use(express.static(path.join(__dirname)))
 
-const openai=new OpenAI({
-apiKey:process.env.OPENAI_API_KEY
+let chats = {}
+
+function generateTitle(text){
+ const words = text.split(" ")
+ return words.slice(0,6).join(" ")
+}
+
+
+/* LANDING PAGE */
+app.get("/",(req,res)=>{
+ res.sendFile(path.join(__dirname,"landing.html"))
 })
 
-const PORT=process.env.PORT||3000
 
-let chats={}
+/* DASHBOARD */
+app.get("/dashboard",(req,res)=>{
+ res.sendFile(path.join(__dirname,"index.html"))
+})
 
-function id(){
-return Math.random().toString(36).substring(2,9)
-}
 
-function systemPrompt(mode){
-
-let text=`
-You are IdeaPilot.
-
-IdeaPilot helps users turn ideas into real businesses.
-
-Important rules:
-
-• When answering follow-up questions DO NOT restart the entire plan.
-• Continue the previous discussion logically.
-• Only answer the specific follow-up.
-
-Use clean paragraphs and numbered steps.
-Do not output HTML like <br>.
-Do not output markdown like **.
-`
-
-if(mode==="research"){
-text+=" Focus on market research and competitors."
-}
-
-if(mode==="build"){
-text+=" Focus on execution and launching the business."
-}
-
-return text
-}
-
+/* GENERATE PLAN */
 app.post("/plan",async(req,res)=>{
 
-try{
+ try{
 
-const chatId=id()
+ const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
 
-const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
+ const prompt = `
+You are IdeaPilot, an AI system helping people turn ideas into practical execution paths.
 
-const prompt=`
 Idea: ${idea}
 Why: ${why}
 Skills: ${skills}
 Resources: ${resources}
-Hours per week: ${hours}
+Hours: ${hours}
 Income goal: ${incomeGoal} ${currency}
 
-Create a structured startup plan.
+Write sections:
+
+Idea Clarified
+Who This Helps
+Core Problem Being Solved
+Market Reality Check
+Simplest Version To Start
+Monetization Model
+First 3 Real Actions
+30 Day Validation Plan
+Long Term Expansion
+Feasibility Score
+Risk Level
+Startup Capital Estimate
+Execution Difficulty
+
+Avoid markdown symbols like ### or **.
+Write clean readable paragraphs.
 `
 
-const completion=await openai.chat.completions.create({
-model:"gpt-4o-mini",
-messages:[
-{role:"system",content:systemPrompt("idea")},
-{role:"user",content:prompt}
-]
+ const completion = await openai.chat.completions.create({
+ model:"gpt-4o-mini",
+ messages:[
+ {role:"system",content:"You are IdeaPilot, a calm startup advisor."},
+ {role:"user",content:prompt}
+ ]
+ })
+
+ const reply = completion.choices[0].message.content
+
+ const chatId = Date.now().toString()
+
+ chats[chatId]={
+ id:chatId,
+ title:generateTitle(idea),
+ messages:[
+ {role:"assistant",content:reply}
+ ]
+ }
+
+ res.json({chatId,reply})
+
+ }catch(err){
+
+ console.log(err)
+ res.status(500).json({error:"AI error"})
+
+ }
+
 })
 
-const reply=completion.choices[0].message.content
 
-chats[chatId]={
-title:idea,
-messages:[
-{role:"user",content:prompt},
-{role:"assistant",content:reply}
-]
-}
-
-res.json({chatId,reply})
-
-}catch(e){
-
-console.log(e)
-res.json({reply:"AI error"})
-
-}
-
-})
-
+/* FOLLOW UP CHAT */
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
-try{
+ try{
 
-const {chatId,question,mode}=req.body
+ const {chatId,question,mode}=req.body
+ const chat = chats[chatId]
 
-if(!chats[chatId]){
-return res.json({reply:"Chat not found"})
-}
+ if(!chat){
+ return res.json({reply:"Chat not found"})
+ }
 
-let message
+ let systemPrompt="You are IdeaPilot."
 
-if(req.file){
+ if(mode==="idea"){
+ systemPrompt="Help refine ideas and opportunities."
+ }
 
-const base64=req.file.buffer.toString("base64")
+ if(mode==="research"){
+ systemPrompt="Act as a market researcher."
+ }
 
-message={
-role:"user",
-content:[
-{
-type:"text",
-text:question||"Analyze this image"
-},
-{
-type:"image_url",
-image_url:{
-url:`data:${req.file.mimetype};base64,${base64}`
-}
-}
-]
-}
+ if(mode==="build"){
+ systemPrompt="Act as a startup builder focusing on execution."
+ }
 
-}else{
+ let history = chat.messages.map(m=>({
+ role:m.role==="assistant"?"assistant":"user",
+ content:m.content
+ }))
 
-message={
-role:"user",
-content:question
-}
+ let userMessage
 
-}
+ if(req.file){
 
-const completion=await openai.chat.completions.create({
-model:"gpt-4o-mini",
-messages:[
-{role:"system",content:systemPrompt(mode)},
-...chats[chatId].messages,
-message
-]
+ const base64Image = req.file.buffer.toString("base64")
+
+ userMessage={
+ role:"user",
+ content:[
+ {
+ type:"text",
+ text: question || "Analyze this image."
+ },
+ {
+ type:"image_url",
+ image_url:{
+ url:`data:${req.file.mimetype};base64,${base64Image}`
+ }
+ }
+ ]
+ }
+
+ }else{
+
+ userMessage={
+ role:"user",
+ content: question
+ }
+
+ }
+
+ history.push(userMessage)
+
+ const completion = await openai.chat.completions.create({
+ model:"gpt-4o-mini",
+ messages:[
+ {role:"system",content:systemPrompt},
+ ...history
+ ]
+ })
+
+ const reply = completion.choices[0].message.content
+
+ chat.messages.push({role:"user",content:question})
+ chat.messages.push({role:"assistant",content:reply})
+
+ res.json({reply})
+
+ }catch(err){
+
+ console.log(err)
+ res.json({reply:"AI error"})
+ }
+
 })
 
-const reply=completion.choices[0].message.content
 
-chats[chatId].messages.push({role:"user",content:question})
-chats[chatId].messages.push({role:"assistant",content:reply})
-
-res.json({reply})
-
-}catch(e){
-
-console.log(e)
-res.json({reply:"AI error"})
-}
-
-})
-
+/* GET CHATS */
 app.get("/chats",(req,res)=>{
-
-const list=Object.keys(chats).map(id=>({
-id,
-title:chats[id].title,
-messages:chats[id].messages
-}))
-
-res.json(list)
-
+ res.json(Object.values(chats))
 })
 
+
+/* DELETE CHAT */
 app.post("/delete-chat",(req,res)=>{
-
-const {id}=req.body
-delete chats[id]
-
-res.json({ok:true})
-
+ const {id}=req.body
+ delete chats[id]
+ res.json({status:"deleted"})
 })
 
-app.post("/rename-chat",(req,res)=>{
-
-const {id,title}=req.body
-
-if(chats[id]){
-chats[id].title=title
-}
-
-res.json({ok:true})
-
-})
 
 app.listen(PORT,()=>{
-console.log("IdeaPilot running on port "+PORT)
+ console.log("IdeaPilot running on http://localhost:3000")
 })
