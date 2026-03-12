@@ -1,114 +1,214 @@
 <!DOCTYPE html>
 <html>
 <head>
-
 <title>IdeaPilot</title>
-
-<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
 
 body{
 margin:0;
-font-family:Arial;
-background:#0f172a;
+font-family:Arial, Helvetica, sans-serif;
+background:#020617;
 color:white;
-display:flex;
-flex-direction:column;
-align-items:center;
-justify-content:center;
-height:100vh;
+}
+
+.container{
+max-width:1100px;
+margin:auto;
+padding:60px 20px;
+}
+
+.hero{
 text-align:center;
+padding-top:80px;
+padding-bottom:80px;
 }
 
-h1{
+.hero h1{
 font-size:48px;
-margin-bottom:10px;
+margin-bottom:20px;
 }
 
-p{
-font-size:18px;
+.hero p{
+font-size:20px;
 color:#94a3b8;
-max-width:600px;
-line-height:1.6;
+max-width:700px;
+margin:auto;
 }
 
 .startBtn{
 margin-top:40px;
 background:#22c55e;
 border:none;
-padding:16px 30px;
+padding:16px 40px;
 font-size:18px;
-color:white;
 border-radius:8px;
 cursor:pointer;
+color:white;
 }
 
-.startBtn:hover{
-background:#16a34a;
+.section{
+padding:70px 0;
+border-top:1px solid #1e293b;
 }
 
-.features{
-margin-top:60px;
-display:flex;
-gap:40px;
-flex-wrap:wrap;
-justify-content:center;
-max-width:900px;
+.section h2{
+text-align:center;
+font-size:32px;
+margin-bottom:40px;
 }
 
-.feature{
-background:#020617;
-padding:20px;
-border-radius:8px;
-width:240px;
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+gap:30px;
 }
 
-.feature h3{
+.card{
+background:#0f172a;
+padding:25px;
+border-radius:10px;
+}
+
+.card h3{
 margin-top:0;
 }
 
-</style>
+.example{
+background:#0f172a;
+padding:25px;
+border-radius:10px;
+max-width:700px;
+margin:auto;
+text-align:center;
+}
 
+.footer{
+border-top:1px solid #1e293b;
+padding:30px;
+text-align:center;
+color:#94a3b8;
+margin-top:60px;
+}
+
+</style>
 </head>
 
 <body>
 
+<div class="container hero">
+
 <h1>IdeaPilot</h1>
 
 <p>
-Turn ideas into real execution paths.
-IdeaPilot helps entrepreneurs, creators, and builders transform ideas into practical business direction.
+Turn ideas into real execution paths.  
+Describe your idea and IdeaPilot will help you clarify it, validate it, and build a realistic path forward.
 </p>
 
-<button class="startBtn" onclick="start()">Start Using IdeaPilot</button>
-
-<div class="features">
-
-<div class="feature">
-<h3>Idea Clarity</h3>
-<p>Turn rough ideas into structured direction and actionable steps.</p>
-</div>
-
-<div class="feature">
-<h3>Research Mode</h3>
-<p>Explore markets, opportunities, and insights around your concept.</p>
-</div>
-
-<div class="feature">
-<h3>Build Mode</h3>
-<p>Get execution plans to move from idea to real-world action.</p>
-</div>
+<button class="startBtn" onclick="window.location='/dashboard'">
+Start Using IdeaPilot
+</button>
 
 </div>
 
-<script>
 
-function start(){
-window.location.href="/dashboard"
-}
 
-</script>
+<div class="container section">
+
+<h2>How IdeaPilot Works</h2>
+
+<div class="grid">
+
+<div class="card">
+<h3>1 — Describe Your Idea</h3>
+<p>
+Share a business idea, side hustle, project, or opportunity you are thinking about.
+</p>
+</div>
+
+<div class="card">
+<h3>2 — Get a Direction Plan</h3>
+<p>
+IdeaPilot analyzes your idea and generates a structured execution path.
+</p>
+</div>
+
+<div class="card">
+<h3>3 — Refine With AI</h3>
+<p>
+Ask follow-up questions, explore strategy, research markets, and improve your idea.
+</p>
+</div>
+
+</div>
+
+</div>
+
+
+
+<div class="container section">
+
+<h2>What You Can Use IdeaPilot For</h2>
+
+<div class="grid">
+
+<div class="card">
+<h3>Business Ideas</h3>
+<p>Validate startup concepts and business opportunities.</p>
+</div>
+
+<div class="card">
+<h3>Side Hustles</h3>
+<p>Find realistic paths to build additional income streams.</p>
+</div>
+
+<div class="card">
+<h3>Brand Concepts</h3>
+<p>Explore clothing brands, product ideas, or digital businesses.</p>
+</div>
+
+<div class="card">
+<h3>Market Research</h3>
+<p>Understand demand, competitors, and opportunities.</p>
+</div>
+
+</div>
+
+</div>
+
+
+
+<div class="container section">
+
+<h2>Example Idea</h2>
+
+<div class="example">
+
+<p>
+"I want to start an electronics business shipping products from Dubai to Sierra Leone."
+</p>
+
+<p style="color:#94a3b8">
+IdeaPilot will analyze the idea and generate a structured plan with actions, risks, and growth strategy.
+</p>
+
+</div>
+
+</div>
+
+
+
+<div class="footer">
+
+<p>
+IdeaPilot — Turn Ideas Into Execution Paths
+</p>
+
+<p>
+Created by <b>Stable King Alf</b>
+</p>
+
+</div>
 
 </body>
 </html>
