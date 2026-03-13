@@ -14,8 +14,8 @@ margin:0;
 font-family:Arial;
 background:#020617;
 color:white;
-display:flex;
 height:100vh;
+display:flex;
 }
 
 /* SIDEBAR */
@@ -63,14 +63,6 @@ border-radius:6px;
 margin-bottom:8px;
 display:flex;
 justify-content:space-between;
-align-items:center;
-}
-
-.chatMenu{
-background:none;
-border:none;
-color:white;
-cursor:pointer;
 }
 
 /* MAIN */
@@ -81,11 +73,17 @@ display:flex;
 flex-direction:column;
 }
 
-/* FORM */
+/* FORM PAGE */
+
+.formPage{
+flex:1;
+display:flex;
+justify-content:center;
+align-items:center;
+}
 
 .formBox{
-padding:30px;
-max-width:700px;
+width:500px;
 }
 
 input{
@@ -105,10 +103,16 @@ background:#22c55e;
 border:none;
 border-radius:6px;
 cursor:pointer;
-color:white;
+width:100%;
 }
 
-/* CHAT */
+/* DASHBOARD */
+
+.dashboard{
+display:none;
+flex:1;
+flex-direction:column;
+}
 
 .chatWindow{
 flex:1;
@@ -116,31 +120,30 @@ padding:30px;
 overflow:auto;
 }
 
-.aiMessage{
+.message{
 background:#0f172a;
-padding:20px;
+padding:15px;
 border-radius:10px;
+margin-bottom:15px;
 white-space:pre-wrap;
-line-height:1.6;
-margin-bottom:20px;
 }
 
 /* INPUT BAR */
 
 .inputBar{
 display:flex;
+gap:10px;
 border-top:1px solid #1e293b;
 padding:10px;
-gap:10px;
 }
 
 .inputBar input[type=text]{
 flex:1;
+padding:10px;
 background:#020617;
 border:1px solid #1e293b;
 color:white;
 border-radius:6px;
-padding:10px;
 }
 
 .sendBtn{
@@ -149,7 +152,6 @@ border:none;
 padding:10px 20px;
 border-radius:6px;
 cursor:pointer;
-color:white;
 }
 
 </style>
@@ -176,25 +178,29 @@ color:white;
 
 <div class="main">
 
-<div class="formBox" id="formSection">
+<!-- FORM PAGE -->
+
+<div class="formPage" id="formPage">
+
+<div class="formBox">
 
 <h2>Clarify Your Idea</h2>
 
 <input id="idea" placeholder="Your idea">
-
 <input id="why" placeholder="Why it matters">
-
 <input id="skills" placeholder="Skills">
-
 <input id="resources" placeholder="Resources">
-
 <input id="hours" placeholder="Hours per week">
-
 <input id="budget" placeholder="Budget">
 
 <button class="generateBtn" onclick="generatePlan()">Generate Plan</button>
 
 </div>
+</div>
+
+<!-- DASHBOARD -->
+
+<div class="dashboard" id="dashboard">
 
 <div class="chatWindow" id="chatWindow"></div>
 
@@ -202,9 +208,11 @@ color:white;
 
 <input type="file" id="imageUpload">
 
-<input type="text" id="followup" placeholder="Ask follow-up question">
+<input type="text" id="followup" placeholder="Ask follow-up">
 
 <button class="sendBtn" onclick="sendFollowup()">Send</button>
+
+</div>
 
 </div>
 
@@ -214,7 +222,7 @@ color:white;
 
 let currentMode = "idea"
 
-/* MODE SWITCH */
+/* MODE */
 
 function setMode(mode){
 currentMode = mode
@@ -223,7 +231,8 @@ currentMode = mode
 /* NEW CHAT */
 
 function newChat(){
-document.getElementById("formSection").style.display="block"
+document.getElementById("dashboard").style.display="none"
+document.getElementById("formPage").style.display="flex"
 document.getElementById("chatWindow").innerHTML=""
 }
 
@@ -231,34 +240,43 @@ document.getElementById("chatWindow").innerHTML=""
 
 async function generatePlan(){
 
-const idea = document.getElementById("idea").value
-const why = document.getElementById("why").value
-const skills = document.getElementById("skills").value
-const resources = document.getElementById("resources").value
-const hours = document.getElementById("hours").value
-const budget = document.getElementById("budget").value
+const idea=document.getElementById("idea").value
+
+if(!idea){
+alert("Please enter your idea")
+return
+}
+
+try{
 
 const res = await fetch("/generate",{
 method:"POST",
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify({
-idea,
-why,
-skills,
-resources,
-hours,
-budget
+idea:idea,
+why:document.getElementById("why").value,
+skills:document.getElementById("skills").value,
+resources:document.getElementById("resources").value,
+hours:document.getElementById("hours").value,
+budget:document.getElementById("budget").value
 })
 })
 
 const data = await res.json()
 
-document.getElementById("formSection").style.display="none"
+document.getElementById("formPage").style.display="none"
+document.getElementById("dashboard").style.display="flex"
 
-document.getElementById("chatWindow").innerHTML +=
-<div class="aiMessage">${data.reply}</div>
+addMessage(data.reply)
 
 addChat(idea)
+
+}catch(err){
+
+console.log(err)
+alert("Server error")
+
+}
 
 }
 
@@ -266,41 +284,72 @@ addChat(idea)
 
 async function sendFollowup(){
 
-const message = document.getElementById("followup").value
+const message=document.getElementById("followup").value
+const image=document.getElementById("imageUpload").files[0]
 
-if(!message) return
+if(!message && !image) return
 
-const res = await fetch("/followup",{
+const chat=document.getElementById("chatWindow")
+
+chat.innerHTML+=`<div class="message"><b>You:</b> ${message}</div>`
+
+try{
+
+const formData=new FormData()
+
+formData.append("message",message)
+formData.append("mode",currentMode)
+
+if(image){
+formData.append("image",image)
+}
+
+const res=await fetch("/followup",{
 method:"POST",
-headers:{'Content-Type':'application/json'},
-body:JSON.stringify({
-message,
-mode:currentMode
-})
+body:formData
 })
 
-const data = await res.json()
+const data=await res.json()
 
-document.getElementById("chatWindow").innerHTML +=
-<div class="aiMessage">${data.reply}</div>
+addMessage(data.reply)
 
 document.getElementById("followup").value=""
 
+}catch(err){
+
+console.log(err)
+alert("Follow up failed")
+
 }
 
-/* CHAT TITLES */
+}
+
+/* ADD MESSAGE */
+
+function addMessage(text){
+
+const chat=document.getElementById("chatWindow")
+
+chat.innerHTML+=`<div class="message">${text}</div>`
+
+chat.scrollTop=chat.scrollHeight
+
+}
+
+/* CHAT LIST */
 
 function addChat(title){
 
-const chatList = document.getElementById("chatList")
+const chatList=document.getElementById("chatList")
 
-const div = document.createElement("div")
+const div=document.createElement("div")
+
 div.className="chatItem"
 
-div.innerHTML = 
+div.innerHTML=`
 <span>${title}</span>
-<button class="chatMenu" onclick="chatOptions(this)">⋯</button>
-
+<button onclick="chatOptions(this)">⋯</button>
+`
 
 chatList.prepend(div)
 
@@ -310,15 +359,17 @@ chatList.prepend(div)
 
 function chatOptions(btn){
 
-const action = prompt("Type rename or delete")
+const action=prompt("Type rename or delete")
 
 if(action==="delete"){
 btn.parentElement.remove()
 }
 
 if(action==="rename"){
-const name = prompt("New chat name")
-btn.parentElement.querySelector("span").innerText = name
+const name=prompt("New name")
+if(name){
+btn.parentElement.querySelector("span").innerText=name
+}
 }
 
 }
