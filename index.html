@@ -14,24 +14,8 @@ margin:0;
 font-family:Arial;
 background:#020617;
 color:white;
-}
-
-/* MOBILE HEADER */
-
-.mobileHeader{
-display:none;
-height:60px;
-background:#020617;
-border-bottom:1px solid #1e293b;
-align-items:center;
-padding:0 15px;
-font-weight:bold;
-}
-
-.menuBtn{
-font-size:22px;
-margin-right:10px;
-cursor:pointer;
+display:flex;
+height:100vh;
 }
 
 /* SIDEBAR */
@@ -40,43 +24,61 @@ cursor:pointer;
 width:260px;
 background:#020617;
 border-right:1px solid #1e293b;
-position:fixed;
-top:0;
-bottom:0;
 padding:20px;
-overflow-y:auto;
+display:flex;
+flex-direction:column;
 }
 
 .logo{
 font-size:20px;
+font-weight:bold;
 margin-bottom:20px;
+}
+
+.modeBtn{
+background:#0f172a;
+border:none;
+padding:10px;
+border-radius:6px;
+margin-bottom:10px;
+cursor:pointer;
+color:white;
 }
 
 .newChat{
 background:#22c55e;
 border:none;
 padding:10px;
-width:100%;
 border-radius:6px;
 cursor:pointer;
+margin-top:10px;
 margin-bottom:20px;
+color:white;
 }
 
 .chatItem{
 background:#0f172a;
 padding:10px;
 border-radius:6px;
-margin-bottom:10px;
+margin-bottom:8px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+.chatMenu{
+background:none;
+border:none;
+color:white;
 cursor:pointer;
 }
 
 /* MAIN */
 
 .main{
-margin-left:260px;
+flex:1;
 display:flex;
 flex-direction:column;
-height:100vh;
 }
 
 /* FORM */
@@ -103,6 +105,7 @@ background:#22c55e;
 border:none;
 border-radius:6px;
 cursor:pointer;
+color:white;
 }
 
 /* CHAT */
@@ -125,19 +128,19 @@ margin-bottom:20px;
 /* INPUT BAR */
 
 .inputBar{
+display:flex;
 border-top:1px solid #1e293b;
 padding:10px;
-display:flex;
 gap:10px;
 }
 
 .inputBar input[type=text]{
 flex:1;
-padding:10px;
 background:#020617;
 border:1px solid #1e293b;
 color:white;
 border-radius:6px;
+padding:10px;
 }
 
 .sendBtn{
@@ -146,46 +149,7 @@ border:none;
 padding:10px 20px;
 border-radius:6px;
 cursor:pointer;
-}
-
-/* TABS */
-
-.tabs{
-padding:10px 30px;
-display:flex;
-gap:10px;
-}
-
-.tabBtn{
-background:#0f172a;
-border:none;
-padding:8px 14px;
-border-radius:6px;
-cursor:pointer;
-}
-
-/* MOBILE */
-
-@media (max-width:768px){
-
-.mobileHeader{
-display:flex;
-}
-
-.sidebar{
-left:-260px;
-transition:0.3s;
-z-index:1000;
-}
-
-.sidebar.open{
-left:0;
-}
-
-.main{
-margin-left:0;
-}
-
+color:white;
 }
 
 </style>
@@ -194,17 +158,13 @@ margin-left:0;
 
 <body>
 
-<div class="mobileHeader">
-
-<span class="menuBtn" onclick="toggleSidebar()">☰</span>
-
-IdeaPilot
-
-</div>
-
-<div class="sidebar" id="sidebar">
+<div class="sidebar">
 
 <div class="logo">IdeaPilot</div>
+
+<button class="modeBtn" onclick="setMode('idea')">Idea</button>
+<button class="modeBtn" onclick="setMode('research')">Research</button>
+<button class="modeBtn" onclick="setMode('build')">Build</button>
 
 <button class="newChat" onclick="newChat()">+ New Chat</button>
 
@@ -212,25 +172,9 @@ IdeaPilot
 
 <div id="chatList"></div>
 
-<div style="margin-top:20px">
-
-<div class="chatItem">Idea</div>
-<div class="chatItem">Research</div>
-<div class="chatItem">Build</div>
-
-</div>
-
 </div>
 
 <div class="main">
-
-<div class="tabs">
-
-<button class="tabBtn" onclick="switchTab('idea')">Idea</button>
-<button class="tabBtn" onclick="switchTab('research')">Research</button>
-<button class="tabBtn" onclick="switchTab('build')">Build</button>
-
-</div>
 
 <div class="formBox" id="formSection">
 
@@ -268,34 +212,22 @@ IdeaPilot
 
 <script>
 
-let currentTab = "idea"
+let currentMode = "idea"
 
-/* SIDEBAR */
+/* MODE SWITCH */
 
-function toggleSidebar(){
-
-document.getElementById("sidebar").classList.toggle("open")
-
+function setMode(mode){
+currentMode = mode
 }
 
 /* NEW CHAT */
 
 function newChat(){
-
 document.getElementById("formSection").style.display="block"
 document.getElementById("chatWindow").innerHTML=""
-
 }
 
-/* SWITCH TAB */
-
-function switchTab(tab){
-
-currentTab = tab
-
-}
-
-/* GENERATE */
+/* GENERATE PLAN */
 
 async function generatePlan(){
 
@@ -307,11 +239,8 @@ const hours = document.getElementById("hours").value
 const budget = document.getElementById("budget").value
 
 const res = await fetch("/generate",{
-
 method:"POST",
-
 headers:{'Content-Type':'application/json'},
-
 body:JSON.stringify({
 idea,
 why,
@@ -320,7 +249,6 @@ resources,
 hours,
 budget
 })
-
 })
 
 const data = await res.json()
@@ -328,7 +256,7 @@ const data = await res.json()
 document.getElementById("formSection").style.display="none"
 
 document.getElementById("chatWindow").innerHTML +=
-"<div class='aiMessage'>"+data.reply+"</div>"
+<div class="aiMessage">${data.reply}</div>
 
 addChat(idea)
 
@@ -343,22 +271,18 @@ const message = document.getElementById("followup").value
 if(!message) return
 
 const res = await fetch("/followup",{
-
 method:"POST",
-
 headers:{'Content-Type':'application/json'},
-
 body:JSON.stringify({
 message,
-mode:currentTab
+mode:currentMode
 })
-
 })
 
 const data = await res.json()
 
 document.getElementById("chatWindow").innerHTML +=
-"<div class='aiMessage'>"+data.reply+"</div>"
+<div class="aiMessage">${data.reply}</div>
 
 document.getElementById("followup").value=""
 
@@ -371,12 +295,31 @@ function addChat(title){
 const chatList = document.getElementById("chatList")
 
 const div = document.createElement("div")
-
 div.className="chatItem"
 
-div.innerText=title
+div.innerHTML = 
+<span>${title}</span>
+<button class="chatMenu" onclick="chatOptions(this)">⋯</button>
+
 
 chatList.prepend(div)
+
+}
+
+/* RENAME / DELETE */
+
+function chatOptions(btn){
+
+const action = prompt("Type rename or delete")
+
+if(action==="delete"){
+btn.parentElement.remove()
+}
+
+if(action==="rename"){
+const name = prompt("New chat name")
+btn.parentElement.querySelector("span").innerText = name
+}
 
 }
 
