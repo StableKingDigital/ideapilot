@@ -1,10 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
 <title>IdeaPilot</title>
 
 <style>
@@ -12,367 +8,513 @@
 body{
 margin:0;
 font-family:Arial;
-background:#020617;
+background:#0f172a;
 color:white;
-height:100vh;
 display:flex;
+height:100vh;
 }
 
-/* SIDEBAR */
-
-.sidebar{
+#sidebar{
 width:260px;
 background:#020617;
-border-right:1px solid #1e293b;
 padding:20px;
-display:flex;
-flex-direction:column;
 }
 
-.logo{
-font-size:20px;
-font-weight:bold;
-margin-bottom:20px;
-}
+#brand h2{margin:0}
+#brand p{font-size:12px;color:#94a3b8}
 
-.modeBtn{
-background:#0f172a;
-border:none;
-padding:10px;
-border-radius:6px;
-margin-bottom:10px;
-cursor:pointer;
-color:white;
-}
-
-.newChat{
+#newChat{
 background:#22c55e;
 border:none;
-padding:10px;
+padding:12px;
+width:100%;
+color:white;
 border-radius:6px;
 cursor:pointer;
-margin-top:10px;
-margin-bottom:20px;
-color:white;
+margin:20px 0;
 }
 
 .chatItem{
-background:#0f172a;
+background:#1e293b;
 padding:10px;
 border-radius:6px;
 margin-bottom:8px;
 display:flex;
 justify-content:space-between;
+align-items:center;
+cursor:pointer;
+position:relative;
 }
 
-/* MAIN */
+.menu{
+cursor:pointer;
+padding:4px 8px;
+}
 
-.main{
+.menuDropdown{
+display:none;
+position:absolute;
+right:10px;
+top:32px;
+background:#020617;
+border:1px solid #334155;
+border-radius:6px;
+flex-direction:column;
+}
+
+.menuDropdown button{
+background:none;
+border:none;
+color:white;
+padding:8px 12px;
+text-align:left;
+cursor:pointer;
+}
+
+.menuDropdown button:hover{
+background:#1e293b;
+}
+
+#main{
 flex:1;
 display:flex;
 flex-direction:column;
 }
 
-/* FORM PAGE */
-
-.formPage{
-flex:1;
+#modeBar{
 display:flex;
-justify-content:center;
-align-items:center;
-}
-
-.formBox{
-width:500px;
-}
-
-input{
-width:100%;
-padding:12px;
-margin-top:10px;
+gap:10px;
+padding:10px 20px;
 background:#020617;
-border:1px solid #1e293b;
+}
+
+.modeBtn{
+background:#1e293b;
+border:none;
+padding:8px 14px;
 color:white;
 border-radius:6px;
-}
-
-.generateBtn{
-margin-top:20px;
-padding:12px;
-background:#22c55e;
-border:none;
-border-radius:6px;
 cursor:pointer;
-width:100%;
 }
 
-/* DASHBOARD */
-
-.dashboard{
-display:none;
-flex:1;
-flex-direction:column;
+.modeBtn.active{
+background:#22c55e;
 }
 
-.chatWindow{
+#messages{
 flex:1;
-padding:30px;
 overflow:auto;
+padding:30px;
+display:flex;
+flex-direction:column;
+gap:14px;
 }
 
 .message{
-background:#0f172a;
-padding:15px;
+max-width:700px;
+padding:14px;
 border-radius:10px;
-margin-bottom:15px;
+line-height:1.6;
 white-space:pre-wrap;
 }
 
-/* INPUT BAR */
-
-.inputBar{
-display:flex;
-gap:10px;
-border-top:1px solid #1e293b;
-padding:10px;
+.ai{
+background:#1e293b;
+align-self:flex-start;
 }
 
-.inputBar input[type=text]{
+.user{
+background:#2563eb;
+align-self:flex-end;
+}
+
+img{
+max-width:260px;
+border-radius:8px;
+margin-top:8px;
+}
+
+#inputBar{
+display:flex;
+gap:10px;
+padding:12px;
+background:#020617;
+}
+
+#inputContainer{
 flex:1;
+display:flex;
+align-items:center;
+background:#0f172a;
+border:1px solid #1e293b;
+border-radius:8px;
+padding:6px;
+}
+
+#toolsBtn{
+font-size:20px;
+cursor:pointer;
+margin-right:8px;
+}
+
+#question{
+flex:1;
+background:transparent;
+border:none;
+color:white;
+outline:none;
+}
+
+#send{
+background:#22c55e;
+border:none;
+padding:10px 18px;
+border-radius:6px;
+cursor:pointer;
+color:white;
+}
+
+#ideaForm{
+padding:40px;
+max-width:600px;
+}
+
+#ideaForm input{
+width:100%;
+margin-bottom:10px;
 padding:10px;
 background:#020617;
-border:1px solid #1e293b;
+border:1px solid #334155;
 color:white;
 border-radius:6px;
 }
 
-.sendBtn{
+#generateBtn{
 background:#22c55e;
 border:none;
-padding:10px 20px;
+padding:12px;
 border-radius:6px;
+color:white;
 cursor:pointer;
 }
 
 </style>
-
 </head>
 
 <body>
 
-<div class="sidebar">
+<div id="sidebar">
 
-<div class="logo">IdeaPilot</div>
+<div id="brand">
+<h2>IdeaPilot</h2>
+<p>Turn ideas into execution paths</p>
+</div>
 
-<button class="modeBtn" onclick="setMode('idea')">Idea</button>
-<button class="modeBtn" onclick="setMode('research')">Research</button>
-<button class="modeBtn" onclick="setMode('build')">Build</button>
+<button id="newChat" onclick="startNew()">+ New Chat</button>
 
-<button class="newChat" onclick="newChat()">+ New Chat</button>
-
-<div>Your Chats</div>
+<h4>Your Chats</h4>
 
 <div id="chatList"></div>
 
 </div>
 
-<div class="main">
+<div id="main">
 
-<!-- FORM PAGE -->
+<div id="modeBar">
+<button class="modeBtn active" onclick="setMode('idea',this)">Idea</button>
+<button class="modeBtn" onclick="setMode('research',this)">Research</button>
+<button class="modeBtn" onclick="setMode('build',this)">Build</button>
+</div>
 
-<div class="formPage" id="formPage">
+<div id="messages"></div>
 
-<div class="formBox">
+<div id="ideaForm">
 
 <h2>Clarify Your Idea</h2>
 
 <input id="idea" placeholder="Your idea">
 <input id="why" placeholder="Why it matters">
-<input id="skills" placeholder="Skills">
+<input id="skills" placeholder="Your skills">
 <input id="resources" placeholder="Resources">
 <input id="hours" placeholder="Hours per week">
-<input id="budget" placeholder="Budget">
+<input id="income" placeholder="Income goal">
+<input id="currency" placeholder="Currency">
 
-<button class="generateBtn" onclick="generatePlan()">Generate Plan</button>
-
-</div>
-</div>
-
-<!-- DASHBOARD -->
-
-<div class="dashboard" id="dashboard">
-
-<div class="chatWindow" id="chatWindow"></div>
-
-<div class="inputBar">
-
-<input type="file" id="imageUpload">
-
-<input type="text" id="followup" placeholder="Ask follow-up">
-
-<button class="sendBtn" onclick="sendFollowup()">Send</button>
+<button id="generateBtn" onclick="generatePlan()">Generate Plan</button>
 
 </div>
 
+<div id="inputBar">
+
+<div id="inputContainer">
+<div id="toolsBtn" onclick="document.getElementById('imageUpload').click()">+</div>
+<input id="question" placeholder="Ask follow-up question">
 </div>
+
+<button id="send" onclick="sendMessage()">Send</button>
+
+</div>
+
+<input type="file" id="imageUpload" hidden accept="image/*">
 
 </div>
 
 <script>
 
-let currentMode = "idea"
+let currentChatId=null
+let currentMode="idea"
+let pendingImage=null
 
-/* MODE */
+const messages=document.getElementById("messages")
+const chatList=document.getElementById("chatList")
 
-function setMode(mode){
-currentMode = mode
+function cleanAI(text){
+
+return text
+.replace(/\*\*/g,"")
+.replace(/###/g,"")
+.replace(/##/g,"")
+.replace(/#/g,"")
+
 }
 
-/* NEW CHAT */
+function setMode(mode,btn){
 
-function newChat(){
-document.getElementById("dashboard").style.display="none"
-document.getElementById("formPage").style.display="flex"
-document.getElementById("chatWindow").innerHTML=""
+currentMode=mode
+
+document.querySelectorAll(".modeBtn").forEach(b=>b.classList.remove("active"))
+
+btn.classList.add("active")
+
 }
 
-/* GENERATE PLAN */
+function addAI(text){
+
+text = cleanAI(text)
+
+const div=document.createElement("div")
+div.className="message ai"
+div.innerText=text
+
+messages.appendChild(div)
+
+messages.scrollTop=messages.scrollHeight
+
+}
+
+function addUser(text){
+
+const div=document.createElement("div")
+div.className="message user"
+div.innerText=text
+
+messages.appendChild(div)
+
+messages.scrollTop=messages.scrollHeight
+
+}
+
+function addUserImage(src){
+
+const div=document.createElement("div")
+div.className="message user"
+
+const img=document.createElement("img")
+img.src=src
+
+div.appendChild(img)
+
+messages.appendChild(div)
+
+}
+
+document.getElementById("imageUpload").addEventListener("change",function(){
+
+const file=this.files[0]
+
+if(!file) return
+
+pendingImage=file
+
+const reader=new FileReader()
+
+reader.onload=function(e){
+addUserImage(e.target.result)
+}
+
+reader.readAsDataURL(file)
+
+})
 
 async function generatePlan(){
 
-const idea=document.getElementById("idea").value
+document.getElementById("ideaForm").style.display="none"
 
-if(!idea){
-alert("Please enter your idea")
-return
-}
+addAI("Generating startup plan...")
 
-try{
+const res=await fetch("/plan",{
 
-const res = await fetch("/generate",{
 method:"POST",
-headers:{'Content-Type':'application/json'},
+headers:{"Content-Type":"application/json"},
+
 body:JSON.stringify({
-idea:idea,
-why:document.getElementById("why").value,
-skills:document.getElementById("skills").value,
-resources:document.getElementById("resources").value,
-hours:document.getElementById("hours").value,
-budget:document.getElementById("budget").value
+
+idea:idea.value,
+why:why.value,
+skills:skills.value,
+resources:resources.value,
+hours:hours.value,
+incomeGoal:income.value,
+currency:currency.value
+
 })
-})
 
-const data = await res.json()
-
-document.getElementById("formPage").style.display="none"
-document.getElementById("dashboard").style.display="flex"
-
-addMessage(data.reply)
-
-addChat(idea)
-
-}catch(err){
-
-console.log(err)
-alert("Server error")
-
-}
-
-}
-
-/* FOLLOW UP */
-
-async function sendFollowup(){
-
-const message=document.getElementById("followup").value
-const image=document.getElementById("imageUpload").files[0]
-
-if(!message && !image) return
-
-const chat=document.getElementById("chatWindow")
-
-chat.innerHTML+=`<div class="message"><b>You:</b> ${message}</div>`
-
-try{
-
-const formData=new FormData()
-
-formData.append("message",message)
-formData.append("mode",currentMode)
-
-if(image){
-formData.append("image",image)
-}
-
-const res=await fetch("/followup",{
-method:"POST",
-body:formData
 })
 
 const data=await res.json()
 
-addMessage(data.reply)
+messages.innerHTML=""
 
-document.getElementById("followup").value=""
+currentChatId=data.chatId
 
-}catch(err){
+addAI(data.reply)
 
-console.log(err)
-alert("Follow up failed")
-
-}
+loadChats()
 
 }
 
-/* ADD MESSAGE */
+async function sendMessage(){
 
-function addMessage(text){
+const text=document.getElementById("question").value.trim()
 
-const chat=document.getElementById("chatWindow")
+if(!text && !pendingImage) return
 
-chat.innerHTML+=`<div class="message">${text}</div>`
+if(text) addUser(text)
 
-chat.scrollTop=chat.scrollHeight
+const formData=new FormData()
+
+formData.append("chatId",currentChatId)
+formData.append("question",text)
+formData.append("mode",currentMode)
+
+if(pendingImage){
+
+formData.append("file",pendingImage)
 
 }
 
-/* CHAT LIST */
+document.getElementById("question").value=""
+pendingImage=null
 
-function addChat(title){
+const res=await fetch("/followup",{method:"POST",body:formData})
 
-const chatList=document.getElementById("chatList")
+const data=await res.json()
+
+addAI(data.reply)
+
+}
+
+async function loadChats(){
+
+const res=await fetch("/chats")
+
+const chats=await res.json()
+
+chatList.innerHTML=""
+
+chats.reverse().forEach(chat=>{
 
 const div=document.createElement("div")
-
 div.className="chatItem"
 
-div.innerHTML=`
-<span>${title}</span>
-<button onclick="chatOptions(this)">⋯</button>
-`
+const title=document.createElement("span")
+title.innerText=chat.title || "Untitled Chat"
 
-chatList.prepend(div)
+const menu=document.createElement("div")
+menu.className="menu"
+menu.innerText="⋯"
+
+const dropdown=document.createElement("div")
+dropdown.className="menuDropdown"
+
+const rename=document.createElement("button")
+rename.innerText="Rename"
+
+rename.onclick=()=>{
+
+const newTitle=prompt("New title")
+
+fetch("/rename-chat",{
+
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id:chat.id,title:newTitle})
+
+}).then(loadChats)
 
 }
 
-/* RENAME / DELETE */
+const del=document.createElement("button")
+del.innerText="Delete"
 
-function chatOptions(btn){
+del.onclick=()=>{
 
-const action=prompt("Type rename or delete")
+fetch("/delete-chat",{
 
-if(action==="delete"){
-btn.parentElement.remove()
-}
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id:chat.id})
 
-if(action==="rename"){
-const name=prompt("New name")
-if(name){
-btn.parentElement.querySelector("span").innerText=name
-}
-}
+}).then(loadChats)
 
 }
+
+dropdown.appendChild(rename)
+dropdown.appendChild(del)
+
+menu.onclick=(e)=>{
+
+e.stopPropagation()
+
+dropdown.style.display =
+dropdown.style.display==="flex" ? "none" : "flex"
+
+}
+
+div.appendChild(title)
+div.appendChild(menu)
+div.appendChild(dropdown)
+
+div.onclick=()=>{
+
+currentChatId=chat.id
+
+messages.innerHTML=""
+
+chat.messages.forEach(m=>{
+
+if(m.role==="user") addUser(m.content)
+else addAI(m.content)
+
+})
+
+}
+
+chatList.appendChild(div)
+
+})
+
+}
+
+function startNew(){
+
+messages.innerHTML=""
+
+document.getElementById("ideaForm").style.display="block"
+
+}
+
+loadChats()
 
 </script>
 
