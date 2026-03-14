@@ -3,6 +3,7 @@
 <head>
 
 <title>IdeaPilot</title>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -27,6 +28,63 @@ height:100%;
 width:100%;
 }
 
+/* SIDEBAR */
+
+#sidebar{
+position:fixed;
+top:0;
+left:0;
+width:260px;
+height:100%;
+background:#020617;
+padding:20px;
+overflow-y:auto;
+transform:translateX(-100%);
+transition:transform .25s;
+z-index:2000;
+}
+
+#sidebar.open{
+transform:translateX(0);
+}
+
+#overlay{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,.4);
+display:none;
+z-index:1500;
+}
+
+#overlay.show{
+display:block;
+}
+
+#brand h2{margin:0}
+#brand p{font-size:12px;color:#94a3b8}
+
+#newChat{
+background:#22c55e;
+border:none;
+padding:12px;
+width:100%;
+border-radius:6px;
+color:white;
+cursor:pointer;
+margin:20px 0;
+}
+
+.chatItem{
+background:#1e293b;
+padding:10px;
+border-radius:6px;
+margin-bottom:8px;
+cursor:pointer;
+}
+
 /* TOP BAR */
 
 #topBar{
@@ -43,6 +101,8 @@ border-bottom:1px solid #1e293b;
 font-size:22px;
 cursor:pointer;
 }
+
+/* MODE BUTTONS */
 
 .modeBtn{
 background:#1e293b;
@@ -89,7 +149,7 @@ align-self:flex-end;
 }
 
 img{
-max-width:240px;
+max-width:220px;
 border-radius:8px;
 margin-top:8px;
 }
@@ -99,8 +159,8 @@ margin-top:8px;
 #inputBar{
 flex-shrink:0;
 display:flex;
-gap:10px;
-padding:12px;
+gap:8px;
+padding:10px;
 background:#020617;
 border-top:1px solid #1e293b;
 }
@@ -109,6 +169,7 @@ border-top:1px solid #1e293b;
 flex:1;
 display:flex;
 align-items:center;
+min-width:0;
 background:#0f172a;
 border:1px solid #1e293b;
 border-radius:8px;
@@ -123,6 +184,7 @@ margin-right:8px;
 
 #question{
 flex:1;
+min-width:0;
 background:transparent;
 border:none;
 color:white;
@@ -132,10 +194,10 @@ outline:none;
 #send{
 background:#22c55e;
 border:none;
-padding:12px 20px;
+padding:10px 16px;
 border-radius:6px;
-cursor:pointer;
 color:white;
+cursor:pointer;
 }
 
 /* IDEA FORM CARD */
@@ -171,6 +233,22 @@ width:100%;
 </head>
 
 <body>
+
+<div id="overlay"></div>
+
+<div id="sidebar">
+
+<div id="brand">
+<h2>IdeaPilot</h2>
+<p>Turn ideas into execution paths</p>
+</div>
+
+<button id="newChat" onclick="startNew()">+ New Chat</button>
+
+<h4>Your Chats</h4>
+<div id="chatList"></div>
+
+</div>
 
 <div id="app">
 
@@ -221,6 +299,22 @@ width:100%;
 
 <script>
 
+/* SIDEBAR */
+
+const sidebar=document.getElementById("sidebar")
+const overlay=document.getElementById("overlay")
+const menuBtn=document.getElementById("menuBtn")
+
+menuBtn.onclick=()=>{
+sidebar.classList.add("open")
+overlay.classList.add("show")
+}
+
+overlay.onclick=()=>{
+sidebar.classList.remove("open")
+overlay.classList.remove("show")
+}
+
 /* CHAT ENGINE */
 
 let currentChatId=null
@@ -228,111 +322,84 @@ let currentMode="idea"
 let pendingImage=null
 
 const messages=document.getElementById("messages")
+const chatList=document.getElementById("chatList")
 
 function cleanAI(text){
-
-return text
-.replace(/\*\*/g,"")
-.replace(/###/g,"")
-.replace(/##/g,"")
-.replace(/#/g,"")
-
+return text.replace(/\*\*/g,"").replace(/###/g,"").replace(/##/g,"").replace(/#/g,"")
 }
 
 function setMode(mode,btn){
-
 currentMode=mode
-
 document.querySelectorAll(".modeBtn").forEach(b=>b.classList.remove("active"))
-
 btn.classList.add("active")
-
 }
 
 function addAI(text){
-
 text=cleanAI(text)
-
 const div=document.createElement("div")
 div.className="message ai"
 div.innerText=text
-
 messages.appendChild(div)
-
 messages.scrollTop=messages.scrollHeight
-
 }
 
 function addUser(text){
-
 const div=document.createElement("div")
 div.className="message user"
 div.innerText=text
-
 messages.appendChild(div)
-
 }
 
 /* IMAGE PREVIEW */
 
 function addUserImage(src){
-
 const div=document.createElement("div")
 div.className="message user"
-
 const img=document.createElement("img")
 img.src=src
-
 div.appendChild(img)
 messages.appendChild(div)
-
 }
 
 document.getElementById("imageUpload").addEventListener("change",function(){
-
 const file=this.files[0]
-
 if(!file) return
-
 pendingImage=file
-
 const reader=new FileReader()
-
 reader.onload=function(e){
-
 addUserImage(e.target.result)
-
 }
-
 reader.readAsDataURL(file)
-
 })
 
 /* GENERATE PLAN */
 
 async function generatePlan(){
 
+const ideaVal=idea.value
+const whyVal=why.value
+const skillsVal=skills.value
+const resourcesVal=resources.value
+const hoursVal=hours.value
+const incomeVal=income.value
+const currencyVal=currency.value
+
 document.getElementById("ideaFormCard").remove()
 
 addAI("Generating startup plan...")
 
 const res=await fetch("/plan",{
-
 method:"POST",
 headers:{"Content-Type":"application/json"},
-
 body:JSON.stringify({
-
-idea:idea.value,
-why:why.value,
-skills:skills.value,
-resources:resources.value,
-hours:hours.value,
-incomeGoal:income.value,
-currency:currency.value
-
+idea:ideaVal,
+why:whyVal,
+skills:skillsVal,
+resources:resourcesVal,
+hours:hoursVal,
+incomeGoal:incomeVal,
+currency:currencyVal
 })
-
 })
 
 const data=await res.json()
@@ -340,6 +407,8 @@ const data=await res.json()
 currentChatId=data.chatId
 
 addAI(data.reply)
+
+loadChats()
 
 }
 
@@ -373,6 +442,54 @@ const data=await res.json()
 addAI(data.reply)
 
 }
+
+/* CHAT LIST */
+
+async function loadChats(){
+
+const res=await fetch("/chats")
+const chats=await res.json()
+
+chatList.innerHTML=""
+
+chats.reverse().forEach(chat=>{
+
+const div=document.createElement("div")
+div.className="chatItem"
+div.innerText=chat.title||"Untitled Chat"
+
+div.onclick=()=>{
+currentChatId=chat.id
+messages.innerHTML=""
+chat.messages.forEach(m=>{
+if(m.role==="user") addUser(m.content)
+else addAI(m.content)
+})
+sidebar.classList.remove("open")
+overlay.classList.remove("show")
+}
+
+chatList.appendChild(div)
+
+})
+
+}
+
+function startNew(){
+
+messages.innerHTML=""
+
+const form=document.createElement("div")
+form.className="ideaCard"
+form.id="ideaFormCard"
+
+form.innerHTML=document.querySelector(".ideaCard").innerHTML
+
+messages.appendChild(form)
+
+}
+
+loadChats()
 
 </script>
 
