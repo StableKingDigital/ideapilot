@@ -35,6 +35,22 @@ app.get("/dashboard",(req,res)=>{
 })
 
 
+/* CREATE CHAT */
+app.post("/create-chat",(req,res)=>{
+
+ const chatId = Date.now().toString()
+
+ chats[chatId] = {
+  id: chatId,
+  title: "New Chat",
+  messages:[]
+ }
+
+ res.json({chatId})
+
+})
+
+
 /* GENERATE PLAN */
 app.post("/plan",async(req,res)=>{
 
@@ -84,12 +100,12 @@ Write clean readable paragraphs.
 
  const chatId = Date.now().toString()
 
- chats[chatId]={
- id:chatId,
- title:generateTitle(idea),
- messages:[
- {role:"assistant",content:reply}
- ]
+ chats[chatId] = {
+  id:chatId,
+  title:generateTitle(idea),
+  messages:[
+   {role:"assistant",content:reply}
+  ]
  }
 
  res.json({chatId,reply})
@@ -113,26 +129,26 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  const chat = chats[chatId]
 
  if(!chat){
- return res.json({reply:"Chat not found"})
+  return res.json({reply:"Chat not found"})
  }
 
  let systemPrompt="You are IdeaPilot."
 
  if(mode==="idea"){
- systemPrompt="Help refine ideas and opportunities."
+  systemPrompt="Help refine ideas and opportunities."
  }
 
  if(mode==="research"){
- systemPrompt="Act as a market researcher."
+  systemPrompt="Act as a market researcher."
  }
 
  if(mode==="build"){
- systemPrompt="Act as a startup builder focusing on execution."
+  systemPrompt="Act as a startup builder focusing on execution."
  }
 
  let history = chat.messages.map(m=>({
- role:m.role==="assistant"?"assistant":"user",
- content:m.content
+  role:m.role==="assistant"?"assistant":"user",
+  content:m.content
  }))
 
  let userMessage
@@ -142,26 +158,26 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  const base64Image = req.file.buffer.toString("base64")
 
  userMessage={
- role:"user",
- content:[
- {
- type:"text",
- text: question || "Analyze this image."
- },
- {
- type:"image_url",
- image_url:{
- url:`data:${req.file.mimetype};base64,${base64Image}`
- }
- }
- ]
+  role:"user",
+  content:[
+   {
+    type:"text",
+    text: question || "Analyze this image."
+   },
+   {
+    type:"image_url",
+    image_url:{
+     url:`data:${req.file.mimetype};base64,${base64Image}`
+    }
+   }
+  ]
  }
 
  }else{
 
  userMessage={
- role:"user",
- content: question
+  role:"user",
+  content: question
  }
 
  }
@@ -178,8 +194,15 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  const reply = completion.choices[0].message.content
 
- chat.messages.push({role:"user",content:question})
- chat.messages.push({role:"assistant",content:reply})
+ chat.messages.push({
+  role:"user",
+  content: question || "[image uploaded]"
+ })
+
+ chat.messages.push({
+  role:"assistant",
+  content: reply
+ })
 
  res.json({reply})
 
@@ -198,15 +221,38 @@ app.get("/chats",(req,res)=>{
 })
 
 
-/* DELETE CHAT */
-app.post("/delete-chat",(req,res)=>{
- const {id}=req.body
- delete chats[id]
- res.json({status:"deleted"})
+/* RENAME CHAT */
+app.post("/rename-chat",(req,res)=>{
+
+ const {id,title}=req.body
+
+ if(!chats[id]){
+  return res.json({status:"not found"})
+ }
+
+ chats[id].title = title
+
+ res.json({status:"renamed"})
+
 })
 
 
-/* STATIC FILES (moved below routes so landing works) */
+/* DELETE CHAT */
+app.post("/delete-chat",(req,res)=>{
+
+ const {id}=req.body
+
+ if(chats[id]){
+  delete chats[id]
+ }
+
+ res.json({status:"deleted"})
+
+})
+
+
+/* STATIC FILES */
+
 app.use(express.static(path.join(__dirname)))
 
 
