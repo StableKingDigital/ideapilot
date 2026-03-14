@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-
 <title>IdeaPilot</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -72,6 +71,8 @@ cursor:pointer;
 margin:20px 0;
 }
 
+/* CHAT LIST */
+
 .chatItem{
 background:#1e293b;
 padding:10px;
@@ -81,6 +82,39 @@ display:flex;
 justify-content:space-between;
 align-items:center;
 cursor:pointer;
+position:relative;
+}
+
+/* MENU */
+
+.menu{
+cursor:pointer;
+padding:4px 8px;
+}
+
+.menuDropdown{
+display:none;
+position:absolute;
+right:10px;
+top:32px;
+background:#020617;
+border:1px solid #334155;
+border-radius:6px;
+flex-direction:column;
+z-index:3000;
+}
+
+.menuDropdown button{
+background:none;
+border:none;
+color:white;
+padding:8px 12px;
+text-align:left;
+cursor:pointer;
+}
+
+.menuDropdown button:hover{
+background:#1e293b;
 }
 
 /* APP */
@@ -207,7 +241,7 @@ color:white;
 cursor:pointer;
 }
 
-/* IDEA FORM CARD */
+/* IDEA FORM */
 
 .ideaCard{
 background:#020617;
@@ -234,10 +268,6 @@ border-radius:6px;
 color:white;
 cursor:pointer;
 width:100%;
-}
-
-.menu{
-cursor:pointer;
 }
 
 </style>
@@ -345,38 +375,34 @@ div.innerText=text
 messages.appendChild(div)
 }
 
-/* ENTER / SHIFT ENTER */
+/* ENTER SEND */
 
 textarea.addEventListener("keydown",function(e){
-
 if(e.key==="Enter" && !e.shiftKey){
 e.preventDefault()
 sendMessage()
 }
-
 })
 
 /* IMAGE PREVIEW */
-
-function addUserImage(src){
-const div=document.createElement("div")
-div.className="message user"
-const img=document.createElement("img")
-img.src=src
-div.appendChild(img)
-messages.appendChild(div)
-}
 
 document.getElementById("imageUpload").addEventListener("change",function(){
 const file=this.files[0]
 if(!file) return
 pendingImage=file
 const reader=new FileReader()
-reader.onload=e=>addUserImage(e.target.result)
+reader.onload=e=>{
+const div=document.createElement("div")
+div.className="message user"
+const img=document.createElement("img")
+img.src=e.target.result
+div.appendChild(img)
+messages.appendChild(div)
+}
 reader.readAsDataURL(file)
 })
 
-/* GENERATE PLAN */
+/* IDEA FORM */
 
 function showIdeaForm(){
 
@@ -400,6 +426,8 @@ form.innerHTML=`
 messages.appendChild(form)
 
 }
+
+/* GENERATE PLAN */
 
 async function generatePlan(){
 
@@ -437,7 +465,7 @@ loadChats()
 
 }
 
-/* FOLLOWUP */
+/* SEND MESSAGE */
 
 async function sendMessage(){
 
@@ -446,6 +474,17 @@ const text=textarea.value.trim()
 if(!text && !pendingImage) return
 
 if(text) addUser(text)
+
+/* CREATE CHAT IF NONE EXISTS */
+
+if(!currentChatId){
+
+const res=await fetch("/create-chat",{method:"POST"})
+const data=await res.json()
+
+currentChatId=data.chatId
+
+}
 
 const formData=new FormData()
 
@@ -470,7 +509,7 @@ loadChats()
 
 }
 
-/* CHAT LIST */
+/* CHAT HISTORY */
 
 async function loadChats(){
 
@@ -487,18 +526,19 @@ div.className="chatItem"
 const title=document.createElement("span")
 title.innerText=chat.title||"Untitled Chat"
 
-const menu=document.createElement("span")
-menu.innerText="⋯"
+const menu=document.createElement("div")
 menu.className="menu"
+menu.innerText="⋯"
 
-menu.onclick=(e)=>{
+const dropdown=document.createElement("div")
+dropdown.className="menuDropdown"
 
-e.stopPropagation()
+const rename=document.createElement("button")
+rename.innerText="Rename"
 
-const action=prompt("rename or delete")
-
-if(action==="rename"){
+rename.onclick=()=>{
 const newTitle=prompt("New title")
+
 fetch("/rename-chat",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
@@ -506,7 +546,10 @@ body:JSON.stringify({id:chat.id,title:newTitle})
 }).then(loadChats)
 }
 
-if(action==="delete"){
+const del=document.createElement("button")
+del.innerText="Delete"
+
+del.onclick=()=>{
 fetch("/delete-chat",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
@@ -514,10 +557,18 @@ body:JSON.stringify({id:chat.id})
 }).then(loadChats)
 }
 
+dropdown.appendChild(rename)
+dropdown.appendChild(del)
+
+menu.onclick=(e)=>{
+e.stopPropagation()
+dropdown.style.display =
+dropdown.style.display==="flex" ? "none" : "flex"
 }
 
 div.appendChild(title)
 div.appendChild(menu)
+div.appendChild(dropdown)
 
 div.onclick=()=>{
 currentChatId=chat.id
@@ -536,10 +587,11 @@ chatList.appendChild(div)
 
 }
 
+/* NEW CHAT */
+
 function startNew(){
 
 messages.innerHTML=""
-
 currentChatId=null
 
 addAI("Start a new idea discussion or generate a structured startup plan.")
