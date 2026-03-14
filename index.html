@@ -15,12 +15,14 @@ background:#0f172a;
 color:white;
 display:flex;
 height:100vh;
+overflow:hidden;
 }
 
 #sidebar{
 width:260px;
 background:#020617;
 padding:20px;
+overflow-y:auto;
 }
 
 #brand h2{margin:0}
@@ -83,6 +85,8 @@ background:#1e293b;
 flex:1;
 display:flex;
 flex-direction:column;
+height:100vh;
+overflow:hidden;
 }
 
 #modeBar{
@@ -90,6 +94,7 @@ display:flex;
 gap:10px;
 padding:10px 20px;
 background:#020617;
+flex-shrink:0;
 }
 
 .modeBtn{
@@ -107,8 +112,8 @@ background:#22c55e;
 
 #messages{
 flex:1;
-overflow:auto;
-padding:30px;
+overflow-y:auto;
+padding:20px;
 display:flex;
 flex-direction:column;
 gap:14px;
@@ -143,6 +148,7 @@ display:flex;
 gap:10px;
 padding:12px;
 background:#020617;
+flex-shrink:0;
 }
 
 #inputContainer{
@@ -203,25 +209,21 @@ color:white;
 cursor:pointer;
 }
 
-/* MOBILE RESPONSIVE FIX */
+/* MOBILE */
 
 @media (max-width:768px){
 
 body{
 flex-direction:column;
-height:auto;
 }
 
 #sidebar{
 width:100%;
+height:auto;
 }
 
 #main{
-width:100%;
-}
-
-#messages{
-padding:15px;
+height:calc(100vh - 200px);
 }
 
 .message{
@@ -301,13 +303,11 @@ const messages=document.getElementById("messages")
 const chatList=document.getElementById("chatList")
 
 function cleanAI(text){
-
 return text
 .replace(/\*\*/g,"")
 .replace(/###/g,"")
 .replace(/##/g,"")
 .replace(/#/g,"")
-
 }
 
 function setMode(mode,btn){
@@ -430,9 +430,7 @@ formData.append("question",text)
 formData.append("mode",currentMode)
 
 if(pendingImage){
-
 formData.append("file",pendingImage)
-
 }
 
 document.getElementById("question").value=""
@@ -472,11 +470,11 @@ dropdown.className="menuDropdown"
 const rename=document.createElement("button")
 rename.innerText="Rename"
 
-rename.onclick = async (e)=>{
+rename.onclick=async (e)=>{
 
 e.stopPropagation()
 
-const newTitle = prompt("New title")
+const newTitle=prompt("New title")
 
 if(!newTitle) return
 
@@ -486,7 +484,7 @@ headers:{"Content-Type":"application/json"},
 body:JSON.stringify({id:chat.id,title:newTitle})
 })
 
-title.innerText = newTitle
+title.innerText=newTitle
 dropdown.style.display="none"
 
 }
@@ -494,7 +492,7 @@ dropdown.style.display="none"
 const del=document.createElement("button")
 del.innerText="Delete"
 
-del.onclick = async (e)=>{
+del.onclick=async (e)=>{
 
 e.stopPropagation()
 
