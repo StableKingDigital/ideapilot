@@ -2,7 +2,6 @@
 <html>
 <head>
 <title>IdeaPilot</title>
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -142,8 +141,6 @@ font-size:22px;
 cursor:pointer;
 }
 
-/* MODE BUTTONS */
-
 .modeBtn{
 background:#1e293b;
 border:none;
@@ -167,8 +164,6 @@ display:flex;
 flex-direction:column;
 gap:14px;
 }
-
-/* MESSAGE BUBBLES */
 
 .message{
 max-width:100%;
@@ -287,7 +282,6 @@ width:100%;
 <button id="newChat" onclick="startNew()">+ New Chat</button>
 
 <h4>Your Chats</h4>
-
 <div id="chatList"></div>
 
 </div>
@@ -375,13 +369,24 @@ div.innerText=text
 messages.appendChild(div)
 }
 
-/* ENTER SEND */
+/* KEYBOARD HANDLING */
 
 textarea.addEventListener("keydown",function(e){
+
+const isMobile=/Mobi|Android/i.test(navigator.userAgent)
+
+if(isMobile){
+if(e.key==="Enter"){
+e.preventDefault()
+sendMessage()
+}
+}else{
 if(e.key==="Enter" && !e.shiftKey){
 e.preventDefault()
 sendMessage()
 }
+}
+
 })
 
 /* IMAGE PREVIEW */
@@ -427,8 +432,6 @@ messages.appendChild(form)
 
 }
 
-/* GENERATE PLAN */
-
 async function generatePlan(){
 
 const ideaVal=idea.value
@@ -470,10 +473,10 @@ loadChats()
 async function sendMessage(){
 
 const text=textarea.value.trim()
-
 if(!text && !pendingImage) return
 
-if(text) addUser(text)
+textarea.value=""
+addUser(text)
 
 /* CREATE CHAT IF NONE EXISTS */
 
@@ -481,13 +484,11 @@ if(!currentChatId){
 
 const res=await fetch("/create-chat",{method:"POST"})
 const data=await res.json()
-
 currentChatId=data.chatId
 
 }
 
 const formData=new FormData()
-
 formData.append("chatId",currentChatId)
 formData.append("question",text)
 formData.append("mode",currentMode)
@@ -496,11 +497,9 @@ if(pendingImage){
 formData.append("file",pendingImage)
 }
 
-textarea.value=""
 pendingImage=null
 
 const res=await fetch("/followup",{method:"POST",body:formData})
-
 const data=await res.json()
 
 addAI(data.reply)
@@ -538,6 +537,7 @@ rename.innerText="Rename"
 
 rename.onclick=()=>{
 const newTitle=prompt("New title")
+if(!newTitle) return
 
 fetch("/rename-chat",{
 method:"POST",
@@ -587,8 +587,6 @@ chatList.appendChild(div)
 
 }
 
-/* NEW CHAT */
-
 function startNew(){
 
 messages.innerHTML=""
@@ -604,10 +602,7 @@ messages.appendChild(tool)
 
 }
 
-/* FIRST VISIT */
-
 showIdeaForm()
-
 loadChats()
 
 </script>
