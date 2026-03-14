@@ -19,8 +19,6 @@ height:100vh;
 overflow:hidden;
 }
 
-/* APP */
-
 #app{
 display:flex;
 height:100vh;
@@ -70,37 +68,6 @@ display:flex;
 justify-content:space-between;
 align-items:center;
 cursor:pointer;
-position:relative;
-}
-
-.menu{
-cursor:pointer;
-padding:4px 8px;
-}
-
-.menuDropdown{
-display:none;
-position:absolute;
-right:10px;
-top:32px;
-background:#020617;
-border:1px solid #334155;
-border-radius:6px;
-flex-direction:column;
-z-index:1000;
-}
-
-.menuDropdown button{
-background:none;
-border:none;
-color:white;
-padding:8px 12px;
-text-align:left;
-cursor:pointer;
-}
-
-.menuDropdown button:hover{
-background:#1e293b;
 }
 
 /* OVERLAY */
@@ -141,7 +108,6 @@ gap:10px;
 padding:12px 16px;
 background:#020617;
 border-bottom:1px solid #1e293b;
-flex-shrink:0;
 }
 
 #menuBtn{
@@ -355,11 +321,10 @@ sidebar.classList.remove("open")
 overlay.classList.remove("show")
 }
 
-/* CHAT SYSTEM */
+/* CHAT ENGINE */
 
 let currentChatId=null
 let currentMode="idea"
-let pendingImage=null
 
 const messages=document.getElementById("messages")
 const chatList=document.getElementById("chatList")
@@ -399,6 +364,9 @@ messages.appendChild(div)
 
 async function generatePlan(){
 
+document.getElementById("ideaForm").style.display="none"
+messages.innerHTML=""
+
 addAI("Generating startup plan...")
 
 const res=await fetch("/plan",{
@@ -417,7 +385,6 @@ currency:currency.value
 
 const data=await res.json()
 
-messages.innerHTML=""
 currentChatId=data.chatId
 
 addAI(data.reply)
