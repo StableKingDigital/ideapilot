@@ -194,6 +194,12 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  const reply = completion.choices[0].message.content
 
+ /* AUTO TITLE FROM FIRST MESSAGE */
+
+ if(chat.title === "New Chat" && question){
+  chat.title = generateTitle(question)
+ }
+
  chat.messages.push({
   role:"user",
   content: question || "[image uploaded]"
