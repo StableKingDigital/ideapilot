@@ -19,13 +19,8 @@ background:#0f172a;
 color:white;
 }
 
-/* APP */
-
-#app{
-display:flex;
-flex-direction:column;
-height:100%;
-width:100%;
+input,textarea{
+font-size:16px;
 }
 
 /* SIDEBAR */
@@ -82,7 +77,18 @@ background:#1e293b;
 padding:10px;
 border-radius:6px;
 margin-bottom:8px;
+display:flex;
+justify-content:space-between;
+align-items:center;
 cursor:pointer;
+}
+
+/* APP */
+
+#app{
+display:flex;
+flex-direction:column;
+height:100%;
 }
 
 /* TOP BAR */
@@ -182,13 +188,14 @@ cursor:pointer;
 margin-right:8px;
 }
 
-#question{
+textarea{
 flex:1;
-min-width:0;
+resize:none;
 background:transparent;
 border:none;
 color:white;
 outline:none;
+min-height:20px;
 }
 
 #send{
@@ -229,6 +236,10 @@ cursor:pointer;
 width:100%;
 }
 
+.menu{
+cursor:pointer;
+}
+
 </style>
 </head>
 
@@ -246,6 +257,7 @@ width:100%;
 <button id="newChat" onclick="startNew()">+ New Chat</button>
 
 <h4>Your Chats</h4>
+
 <div id="chatList"></div>
 
 </div>
@@ -262,31 +274,13 @@ width:100%;
 
 </div>
 
-<div id="messages">
-
-<div id="ideaFormCard" class="ideaCard">
-
-<h2>Clarify Your Idea</h2>
-
-<input id="idea" placeholder="Your idea">
-<input id="why" placeholder="Why it matters">
-<input id="skills" placeholder="Your skills">
-<input id="resources" placeholder="Resources">
-<input id="hours" placeholder="Hours per week">
-<input id="income" placeholder="Income goal">
-<input id="currency" placeholder="Currency">
-
-<button id="generateBtn" onclick="generatePlan()">Generate Plan</button>
-
-</div>
-
-</div>
+<div id="messages"></div>
 
 <div id="inputBar">
 
 <div id="inputContainer">
 <div id="toolsBtn" onclick="document.getElementById('imageUpload').click()">+</div>
-<input id="question" placeholder="Ask follow-up question">
+<textarea id="question" placeholder="Ask follow-up question"></textarea>
 </div>
 
 <button id="send" onclick="sendMessage()">Send</button>
@@ -323,6 +317,7 @@ let pendingImage=null
 
 const messages=document.getElementById("messages")
 const chatList=document.getElementById("chatList")
+const textarea=document.getElementById("question")
 
 function cleanAI(text){
 return text.replace(/\*\*/g,"").replace(/###/g,"").replace(/##/g,"").replace(/#/g,"")
@@ -350,6 +345,17 @@ div.innerText=text
 messages.appendChild(div)
 }
 
+/* ENTER / SHIFT ENTER */
+
+textarea.addEventListener("keydown",function(e){
+
+if(e.key==="Enter" && !e.shiftKey){
+e.preventDefault()
+sendMessage()
+}
+
+})
+
 /* IMAGE PREVIEW */
 
 function addUserImage(src){
@@ -366,13 +372,34 @@ const file=this.files[0]
 if(!file) return
 pendingImage=file
 const reader=new FileReader()
-reader.onload=function(e){
-addUserImage(e.target.result)
-}
+reader.onload=e=>addUserImage(e.target.result)
 reader.readAsDataURL(file)
 })
 
 /* GENERATE PLAN */
+
+function showIdeaForm(){
+
+const form=document.createElement("div")
+form.className="ideaCard"
+
+form.innerHTML=`
+<h2>Clarify Your Idea</h2>
+
+<input id="idea" placeholder="Your idea">
+<input id="why" placeholder="Why it matters">
+<input id="skills" placeholder="Your skills">
+<input id="resources" placeholder="Resources">
+<input id="hours" placeholder="Hours per week">
+<input id="income" placeholder="Income goal">
+<input id="currency" placeholder="Currency">
+
+<button id="generateBtn" onclick="generatePlan()">Generate Plan</button>
+`
+
+messages.appendChild(form)
+
+}
 
 async function generatePlan(){
 
@@ -383,8 +410,6 @@ const resourcesVal=resources.value
 const hoursVal=hours.value
 const incomeVal=income.value
 const currencyVal=currency.value
-
-document.getElementById("ideaFormCard").remove()
 
 addAI("Generating startup plan...")
 
@@ -416,7 +441,7 @@ loadChats()
 
 async function sendMessage(){
 
-const text=document.getElementById("question").value.trim()
+const text=textarea.value.trim()
 
 if(!text && !pendingImage) return
 
@@ -432,7 +457,7 @@ if(pendingImage){
 formData.append("file",pendingImage)
 }
 
-document.getElementById("question").value=""
+textarea.value=""
 pendingImage=null
 
 const res=await fetch("/followup",{method:"POST",body:formData})
@@ -440,6 +465,8 @@ const res=await fetch("/followup",{method:"POST",body:formData})
 const data=await res.json()
 
 addAI(data.reply)
+
+loadChats()
 
 }
 
@@ -456,7 +483,41 @@ chats.reverse().forEach(chat=>{
 
 const div=document.createElement("div")
 div.className="chatItem"
-div.innerText=chat.title||"Untitled Chat"
+
+const title=document.createElement("span")
+title.innerText=chat.title||"Untitled Chat"
+
+const menu=document.createElement("span")
+menu.innerText="⋯"
+menu.className="menu"
+
+menu.onclick=(e)=>{
+
+e.stopPropagation()
+
+const action=prompt("rename or delete")
+
+if(action==="rename"){
+const newTitle=prompt("New title")
+fetch("/rename-chat",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id:chat.id,title:newTitle})
+}).then(loadChats)
+}
+
+if(action==="delete"){
+fetch("/delete-chat",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id:chat.id})
+}).then(loadChats)
+}
+
+}
+
+div.appendChild(title)
+div.appendChild(menu)
 
 div.onclick=()=>{
 currentChatId=chat.id
@@ -479,15 +540,21 @@ function startNew(){
 
 messages.innerHTML=""
 
-const form=document.createElement("div")
-form.className="ideaCard"
-form.id="ideaFormCard"
+currentChatId=null
 
-form.innerHTML=document.querySelector(".ideaCard").innerHTML
+addAI("Start a new idea discussion or generate a structured startup plan.")
 
-messages.appendChild(form)
+const tool=document.createElement("div")
+tool.className="ideaCard"
+tool.innerHTML=`<button onclick="showIdeaForm()">Generate Startup Plan</button>`
+
+messages.appendChild(tool)
 
 }
+
+/* FIRST VISIT */
+
+showIdeaForm()
 
 loadChats()
 
