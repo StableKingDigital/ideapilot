@@ -102,6 +102,9 @@ height:100vh;
 /* TOP BAR */
 
 #topBar{
+position:sticky;
+top:0;
+z-index:100;
 display:flex;
 align-items:center;
 gap:10px;
@@ -325,9 +328,20 @@ overlay.classList.remove("show")
 
 let currentChatId=null
 let currentMode="idea"
+let pendingImage=null
 
 const messages=document.getElementById("messages")
 const chatList=document.getElementById("chatList")
+
+function cleanAI(text){
+
+return text
+.replace(/\*\*/g,"")
+.replace(/###/g,"")
+.replace(/##/g,"")
+.replace(/#/g,"")
+
+}
 
 function setMode(mode,btn){
 
@@ -342,6 +356,8 @@ btn.classList.add("active")
 }
 
 function addAI(text){
+
+text = cleanAI(text)
 
 const div=document.createElement("div")
 div.className="message ai"
@@ -361,6 +377,38 @@ div.innerText=text
 messages.appendChild(div)
 
 }
+
+function addUserImage(src){
+
+const div=document.createElement("div")
+div.className="message user"
+
+const img=document.createElement("img")
+img.src=src
+
+div.appendChild(img)
+messages.appendChild(div)
+
+}
+
+/* IMAGE PREVIEW */
+
+document.getElementById("imageUpload").addEventListener("change",function(){
+
+const file=this.files[0]
+if(!file) return
+
+pendingImage=file
+
+const reader=new FileReader()
+
+reader.onload=function(e){
+addUserImage(e.target.result)
+}
+
+reader.readAsDataURL(file)
+
+})
 
 async function generatePlan(){
 
@@ -397,9 +445,9 @@ async function sendMessage(){
 
 const text=document.getElementById("question").value.trim()
 
-if(!text) return
+if(!text && !pendingImage) return
 
-addUser(text)
+if(text) addUser(text)
 
 const formData=new FormData()
 
@@ -407,7 +455,12 @@ formData.append("chatId",currentChatId)
 formData.append("question",text)
 formData.append("mode",currentMode)
 
+if(pendingImage){
+formData.append("file",pendingImage)
+}
+
 document.getElementById("question").value=""
+pendingImage=null
 
 const res=await fetch("/followup",{method:"POST",body:formData})
 
