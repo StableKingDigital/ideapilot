@@ -8,9 +8,7 @@
 
 <style>
 
-*{
-box-sizing:border-box;
-}
+*{box-sizing:border-box;}
 
 body{
 margin:0;
@@ -21,7 +19,7 @@ height:100vh;
 overflow:hidden;
 }
 
-/* APP CONTAINER */
+/* APP */
 
 #app{
 display:flex;
@@ -63,8 +61,6 @@ cursor:pointer;
 margin:20px 0;
 }
 
-/* CHAT LIST */
-
 .chatItem{
 background:#1e293b;
 padding:10px;
@@ -76,8 +72,6 @@ align-items:center;
 cursor:pointer;
 position:relative;
 }
-
-/* MENU */
 
 .menu{
 cursor:pointer;
@@ -129,15 +123,13 @@ opacity:1;
 pointer-events:auto;
 }
 
-/* MAIN CHAT */
+/* MAIN */
 
 #main{
 flex:1;
 display:flex;
 flex-direction:column;
 height:100vh;
-position:relative;
-z-index:1;
 }
 
 /* TOP BAR */
@@ -170,7 +162,7 @@ cursor:pointer;
 background:#22c55e;
 }
 
-/* CHAT AREA */
+/* CHAT */
 
 #messages{
 flex:1;
@@ -180,8 +172,6 @@ display:flex;
 flex-direction:column;
 gap:14px;
 }
-
-/* MESSAGE STYLE */
 
 .message{
 max-width:700px;
@@ -207,7 +197,7 @@ border-radius:8px;
 margin-top:8px;
 }
 
-/* INPUT BAR */
+/* INPUT */
 
 #inputBar{
 display:flex;
@@ -215,7 +205,6 @@ gap:10px;
 padding:12px;
 background:#020617;
 border-top:1px solid #1e293b;
-flex-shrink:0;
 }
 
 #inputContainer{
@@ -249,7 +238,6 @@ padding:12px 20px;
 border-radius:6px;
 cursor:pointer;
 color:white;
-font-size:16px;
 }
 
 /* IDEA FORM */
@@ -351,7 +339,7 @@ cursor:pointer;
 
 <script>
 
-/* SIDEBAR CONTROL */
+/* SIDEBAR */
 
 const sidebar=document.getElementById("sidebar")
 const overlay=document.getElementById("overlay")
@@ -367,21 +355,140 @@ sidebar.classList.remove("open")
 overlay.classList.remove("show")
 }
 
-/* SWIPE OPEN */
+/* CHAT SYSTEM */
 
-let startX=0
+let currentChatId=null
+let currentMode="idea"
+let pendingImage=null
 
-document.addEventListener("touchstart",e=>{
-startX=e.touches[0].clientX
+const messages=document.getElementById("messages")
+const chatList=document.getElementById("chatList")
+
+function setMode(mode,btn){
+
+currentMode=mode
+
+document.querySelectorAll(".modeBtn").forEach(b=>{
+b.classList.remove("active")
 })
 
-document.addEventListener("touchmove",e=>{
-let x=e.touches[0].clientX
-if(startX<30 && x>90){
-sidebar.classList.add("open")
-overlay.classList.add("show")
+btn.classList.add("active")
+
 }
+
+function addAI(text){
+
+const div=document.createElement("div")
+div.className="message ai"
+div.innerText=text
+
+messages.appendChild(div)
+messages.scrollTop=messages.scrollHeight
+
+}
+
+function addUser(text){
+
+const div=document.createElement("div")
+div.className="message user"
+div.innerText=text
+
+messages.appendChild(div)
+
+}
+
+async function generatePlan(){
+
+addAI("Generating startup plan...")
+
+const res=await fetch("/plan",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+idea:idea.value,
+why:why.value,
+skills:skills.value,
+resources:resources.value,
+hours:hours.value,
+incomeGoal:income.value,
+currency:currency.value
 })
+})
+
+const data=await res.json()
+
+messages.innerHTML=""
+currentChatId=data.chatId
+
+addAI(data.reply)
+
+loadChats()
+
+}
+
+async function sendMessage(){
+
+const text=document.getElementById("question").value.trim()
+
+if(!text) return
+
+addUser(text)
+
+const formData=new FormData()
+
+formData.append("chatId",currentChatId)
+formData.append("question",text)
+formData.append("mode",currentMode)
+
+document.getElementById("question").value=""
+
+const res=await fetch("/followup",{method:"POST",body:formData})
+
+const data=await res.json()
+
+addAI(data.reply)
+
+}
+
+async function loadChats(){
+
+const res=await fetch("/chats")
+const chats=await res.json()
+
+chatList.innerHTML=""
+
+chats.reverse().forEach(chat=>{
+
+const div=document.createElement("div")
+div.className="chatItem"
+div.innerText=chat.title||"Untitled Chat"
+
+div.onclick=()=>{
+
+currentChatId=chat.id
+messages.innerHTML=""
+
+chat.messages.forEach(m=>{
+if(m.role==="user") addUser(m.content)
+else addAI(m.content)
+})
+
+}
+
+chatList.appendChild(div)
+
+})
+
+}
+
+function startNew(){
+
+messages.innerHTML=""
+document.getElementById("ideaForm").style.display="block"
+
+}
+
+loadChats()
 
 </script>
 
