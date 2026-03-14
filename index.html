@@ -441,9 +441,11 @@ dropdown.className="menuDropdown"
 const rename=document.createElement("button")
 rename.innerText="Rename"
 
-rename.onclick=async ()=>{
+rename.onclick = async (e)=>{
 
-const newTitle=prompt("New title")
+e.stopPropagation()
+
+const newTitle = prompt("New title")
 
 if(!newTitle) return
 
@@ -453,20 +455,26 @@ headers:{"Content-Type":"application/json"},
 body:JSON.stringify({id:chat.id,title:newTitle})
 })
 
-loadChats()
+title.innerText = newTitle
+dropdown.style.display="none"
 
 }
 
 const del=document.createElement("button")
 del.innerText="Delete"
 
-del.onclick=()=>{
+del.onclick = async (e)=>{
 
-fetch("/delete-chat",{
+e.stopPropagation()
+
+await fetch("/delete-chat",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({id:chat.id})
-}).then(loadChats)
+})
+
+dropdown.style.display="none"
+loadChats()
 
 }
 
@@ -513,10 +521,15 @@ chatList.appendChild(div)
 function startNew(){
 
 messages.innerHTML=""
-
 document.getElementById("ideaForm").style.display="block"
 
 }
+
+document.addEventListener("click",()=>{
+document.querySelectorAll(".menuDropdown").forEach(m=>{
+m.style.display="none"
+})
+})
 
 loadChats()
 
