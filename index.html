@@ -18,11 +18,15 @@ height:100vh;
 overflow:hidden;
 }
 
+/* SIDEBAR */
+
 #sidebar{
 width:260px;
 background:#020617;
 padding:20px;
 overflow-y:auto;
+height:100vh;
+flex-shrink:0;
 }
 
 #brand h2{margin:0}
@@ -81,6 +85,8 @@ cursor:pointer;
 background:#1e293b;
 }
 
+/* MAIN CHAT AREA */
+
 #main{
 flex:1;
 display:flex;
@@ -88,6 +94,8 @@ flex-direction:column;
 height:100vh;
 overflow:hidden;
 }
+
+/* MODE BAR */
 
 #modeBar{
 display:flex;
@@ -109,6 +117,8 @@ cursor:pointer;
 .modeBtn.active{
 background:#22c55e;
 }
+
+/* CHAT MESSAGES */
 
 #messages{
 flex:1;
@@ -142,6 +152,8 @@ max-width:260px;
 border-radius:8px;
 margin-top:8px;
 }
+
+/* INPUT BAR */
 
 #inputBar{
 display:flex;
@@ -185,6 +197,8 @@ color:white;
 font-size:16px;
 }
 
+/* IDEA FORM */
+
 #ideaForm{
 padding:40px;
 max-width:600px;
@@ -213,17 +227,8 @@ cursor:pointer;
 
 @media (max-width:768px){
 
-body{
-flex-direction:column;
-}
-
 #sidebar{
-width:100%;
-height:auto;
-}
-
-#main{
-height:calc(100vh - 200px);
+width:200px;
 }
 
 .message{
