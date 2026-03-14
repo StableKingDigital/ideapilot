@@ -10,23 +10,46 @@
 
 body{
 margin:0;
-font-family:Arial;
+font-family:Arial, Helvetica, sans-serif;
 background:#0f172a;
 color:white;
-display:flex;
 height:100vh;
 overflow:hidden;
+display:flex;
 }
 
 /* SIDEBAR */
 
 #sidebar{
+position:fixed;
+left:-260px;
+top:0;
 width:260px;
+height:100vh;
 background:#020617;
 padding:20px;
 overflow-y:auto;
-height:100vh;
-flex-shrink:0;
+transition:0.25s;
+z-index:2000;
+}
+
+#sidebar.open{
+left:0;
+}
+
+#overlay{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.4);
+display:none;
+z-index:1500;
+}
+
+#overlay.show{
+display:block;
 }
 
 #brand h2{margin:0}
@@ -42,6 +65,8 @@ border-radius:6px;
 cursor:pointer;
 margin:20px 0;
 }
+
+/* CHAT LIST */
 
 .chatItem{
 background:#1e293b;
@@ -85,24 +110,31 @@ cursor:pointer;
 background:#1e293b;
 }
 
-/* MAIN CHAT AREA */
+/* MAIN */
 
 #main{
 flex:1;
 display:flex;
 flex-direction:column;
 height:100vh;
-overflow:hidden;
+width:100%;
 }
 
-/* MODE BAR */
+/* TOP BAR */
 
 #modeBar{
 display:flex;
+align-items:center;
 gap:10px;
 padding:10px 20px;
 background:#020617;
 flex-shrink:0;
+}
+
+#menuBtn{
+font-size:22px;
+cursor:pointer;
+margin-right:10px;
 }
 
 .modeBtn{
@@ -118,7 +150,7 @@ cursor:pointer;
 background:#22c55e;
 }
 
-/* CHAT MESSAGES */
+/* MESSAGES */
 
 #messages{
 flex:1;
@@ -223,24 +255,12 @@ color:white;
 cursor:pointer;
 }
 
-/* MOBILE */
-
-@media (max-width:768px){
-
-#sidebar{
-width:200px;
-}
-
-.message{
-max-width:90%;
-}
-
-}
-
 </style>
 </head>
 
 <body>
+
+<div id="overlay" onclick="closeSidebar()"></div>
 
 <div id="sidebar">
 
@@ -260,9 +280,13 @@ max-width:90%;
 <div id="main">
 
 <div id="modeBar">
+
+<div id="menuBtn" onclick="openSidebar()">☰</div>
+
 <button class="modeBtn active" onclick="setMode('idea',this)">Idea</button>
 <button class="modeBtn" onclick="setMode('research',this)">Research</button>
 <button class="modeBtn" onclick="setMode('build',this)">Build</button>
+
 </div>
 
 <div id="messages"></div>
@@ -307,34 +331,52 @@ let pendingImage=null
 const messages=document.getElementById("messages")
 const chatList=document.getElementById("chatList")
 
+function openSidebar(){
+document.getElementById("sidebar").classList.add("open")
+document.getElementById("overlay").classList.add("show")
+}
+
+function closeSidebar(){
+document.getElementById("sidebar").classList.remove("open")
+document.getElementById("overlay").classList.remove("show")
+}
+
+/* SWIPE OPEN */
+
+let startX=0
+
+document.addEventListener("touchstart",e=>{
+startX=e.touches[0].clientX
+})
+
+document.addEventListener("touchmove",e=>{
+let x=e.touches[0].clientX
+if(startX<30 && x>80){
+openSidebar()
+}
+})
+
 function cleanAI(text){
-return text
-.replace(/\*\*/g,"")
-.replace(/###/g,"")
-.replace(/##/g,"")
-.replace(/#/g,"")
+return text.replace(/\*\*/g,"").replace(/###/g,"").replace(/##/g,"").replace(/#/g,"")
 }
 
 function setMode(mode,btn){
 
 currentMode=mode
-
 document.querySelectorAll(".modeBtn").forEach(b=>b.classList.remove("active"))
-
 btn.classList.add("active")
 
 }
 
 function addAI(text){
 
-text = cleanAI(text)
+text=cleanAI(text)
 
 const div=document.createElement("div")
 div.className="message ai"
 div.innerText=text
 
 messages.appendChild(div)
-
 messages.scrollTop=messages.scrollHeight
 
 }
@@ -346,7 +388,6 @@ div.className="message user"
 div.innerText=text
 
 messages.appendChild(div)
-
 messages.scrollTop=messages.scrollHeight
 
 }
@@ -360,7 +401,6 @@ const img=document.createElement("img")
 img.src=src
 
 div.appendChild(img)
-
 messages.appendChild(div)
 
 }
@@ -368,7 +408,6 @@ messages.appendChild(div)
 document.getElementById("imageUpload").addEventListener("change",function(){
 
 const file=this.files[0]
-
 if(!file) return
 
 pendingImage=file
@@ -480,7 +519,6 @@ rename.onclick=async (e)=>{
 e.stopPropagation()
 
 const newTitle=prompt("New title")
-
 if(!newTitle) return
 
 await fetch("/rename-chat",{
@@ -538,11 +576,11 @@ currentChatId=chat.id
 messages.innerHTML=""
 
 chat.messages.forEach(m=>{
-
 if(m.role==="user") addUser(m.content)
 else addAI(m.content)
-
 })
+
+closeSidebar()
 
 }
 
@@ -556,6 +594,7 @@ function startNew(){
 
 messages.innerHTML=""
 document.getElementById("ideaForm").style.display="block"
+closeSidebar()
 
 }
 
