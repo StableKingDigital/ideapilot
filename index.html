@@ -3,10 +3,13 @@
 <head>
 
 <title>IdeaPilot</title>
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
+
+*{
+box-sizing:border-box;
+}
 
 body{
 margin:0;
@@ -15,41 +18,35 @@ background:#0f172a;
 color:white;
 height:100vh;
 overflow:hidden;
+}
+
+/* APP LAYOUT */
+
+#app{
 display:flex;
+height:100vh;
+width:100%;
+position:relative;
 }
 
 /* SIDEBAR */
 
 #sidebar{
 position:fixed;
-left:-260px;
 top:0;
+left:0;
 width:260px;
-height:100vh;
+height:100%;
 background:#020617;
 padding:20px;
 overflow-y:auto;
-transition:0.25s;
+transform:translateX(-100%);
+transition:transform .25s ease;
 z-index:2000;
 }
 
 #sidebar.open{
-left:0;
-}
-
-#overlay{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-height:100%;
-background:rgba(0,0,0,0.4);
-display:none;
-z-index:1500;
-}
-
-#overlay.show{
-display:block;
+transform:translateX(0);
 }
 
 #brand h2{margin:0}
@@ -66,8 +63,6 @@ cursor:pointer;
 margin:20px 0;
 }
 
-/* CHAT LIST */
-
 .chatItem{
 background:#1e293b;
 padding:10px;
@@ -79,6 +74,8 @@ align-items:center;
 cursor:pointer;
 position:relative;
 }
+
+/* MENU */
 
 .menu{
 cursor:pointer;
@@ -110,31 +107,47 @@ cursor:pointer;
 background:#1e293b;
 }
 
-/* MAIN */
+/* OVERLAY */
+
+#overlay{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,.5);
+display:none;
+z-index:1500;
+}
+
+#overlay.show{
+display:block;
+}
+
+/* MAIN CHAT AREA */
 
 #main{
 flex:1;
 display:flex;
 flex-direction:column;
 height:100vh;
-width:100%;
 }
 
 /* TOP BAR */
 
-#modeBar{
+#topBar{
 display:flex;
 align-items:center;
 gap:10px;
-padding:10px 20px;
+padding:12px 16px;
 background:#020617;
+border-bottom:1px solid #1e293b;
 flex-shrink:0;
 }
 
 #menuBtn{
 font-size:22px;
 cursor:pointer;
-margin-right:10px;
 }
 
 .modeBtn{
@@ -150,7 +163,7 @@ cursor:pointer;
 background:#22c55e;
 }
 
-/* MESSAGES */
+/* CHAT AREA */
 
 #messages{
 flex:1;
@@ -160,6 +173,8 @@ display:flex;
 flex-direction:column;
 gap:14px;
 }
+
+/* MESSAGES */
 
 .message{
 max-width:700px;
@@ -192,6 +207,7 @@ display:flex;
 gap:10px;
 padding:12px;
 background:#020617;
+border-top:1px solid #1e293b;
 flex-shrink:0;
 }
 
@@ -232,7 +248,7 @@ font-size:16px;
 /* IDEA FORM */
 
 #ideaForm{
-padding:40px;
+padding:30px;
 max-width:600px;
 }
 
@@ -260,7 +276,9 @@ cursor:pointer;
 
 <body>
 
-<div id="overlay" onclick="closeSidebar()"></div>
+<div id="app">
+
+<div id="overlay"></div>
 
 <div id="sidebar">
 
@@ -279,9 +297,9 @@ cursor:pointer;
 
 <div id="main">
 
-<div id="modeBar">
+<div id="topBar">
 
-<div id="menuBtn" onclick="openSidebar()">☰</div>
+<div id="menuBtn">☰</div>
 
 <button class="modeBtn active" onclick="setMode('idea',this)">Idea</button>
 <button class="modeBtn" onclick="setMode('research',this)">Research</button>
@@ -322,23 +340,24 @@ cursor:pointer;
 
 </div>
 
+</div>
+
 <script>
 
-let currentChatId=null
-let currentMode="idea"
-let pendingImage=null
+/* SIDEBAR CONTROL */
 
-const messages=document.getElementById("messages")
-const chatList=document.getElementById("chatList")
+const sidebar=document.getElementById("sidebar")
+const overlay=document.getElementById("overlay")
+const menuBtn=document.getElementById("menuBtn")
 
-function openSidebar(){
-document.getElementById("sidebar").classList.add("open")
-document.getElementById("overlay").classList.add("show")
+menuBtn.onclick=()=>{
+sidebar.classList.add("open")
+overlay.classList.add("show")
 }
 
-function closeSidebar(){
-document.getElementById("sidebar").classList.remove("open")
-document.getElementById("overlay").classList.remove("show")
+overlay.onclick=()=>{
+sidebar.classList.remove("open")
+overlay.classList.remove("show")
 }
 
 /* SWIPE OPEN */
@@ -351,260 +370,11 @@ startX=e.touches[0].clientX
 
 document.addEventListener("touchmove",e=>{
 let x=e.touches[0].clientX
-if(startX<30 && x>80){
-openSidebar()
+if(startX<30 && x>90){
+sidebar.classList.add("open")
+overlay.classList.add("show")
 }
 })
-
-function cleanAI(text){
-return text.replace(/\*\*/g,"").replace(/###/g,"").replace(/##/g,"").replace(/#/g,"")
-}
-
-function setMode(mode,btn){
-
-currentMode=mode
-document.querySelectorAll(".modeBtn").forEach(b=>b.classList.remove("active"))
-btn.classList.add("active")
-
-}
-
-function addAI(text){
-
-text=cleanAI(text)
-
-const div=document.createElement("div")
-div.className="message ai"
-div.innerText=text
-
-messages.appendChild(div)
-messages.scrollTop=messages.scrollHeight
-
-}
-
-function addUser(text){
-
-const div=document.createElement("div")
-div.className="message user"
-div.innerText=text
-
-messages.appendChild(div)
-messages.scrollTop=messages.scrollHeight
-
-}
-
-function addUserImage(src){
-
-const div=document.createElement("div")
-div.className="message user"
-
-const img=document.createElement("img")
-img.src=src
-
-div.appendChild(img)
-messages.appendChild(div)
-
-}
-
-document.getElementById("imageUpload").addEventListener("change",function(){
-
-const file=this.files[0]
-if(!file) return
-
-pendingImage=file
-
-const reader=new FileReader()
-
-reader.onload=function(e){
-addUserImage(e.target.result)
-}
-
-reader.readAsDataURL(file)
-
-})
-
-async function generatePlan(){
-
-document.getElementById("ideaForm").style.display="none"
-
-addAI("Generating startup plan...")
-
-const res=await fetch("/plan",{
-
-method:"POST",
-headers:{"Content-Type":"application/json"},
-
-body:JSON.stringify({
-
-idea:idea.value,
-why:why.value,
-skills:skills.value,
-resources:resources.value,
-hours:hours.value,
-incomeGoal:income.value,
-currency:currency.value
-
-})
-
-})
-
-const data=await res.json()
-
-messages.innerHTML=""
-
-currentChatId=data.chatId
-
-addAI(data.reply)
-
-loadChats()
-
-}
-
-async function sendMessage(){
-
-const text=document.getElementById("question").value.trim()
-
-if(!text && !pendingImage) return
-
-if(text) addUser(text)
-
-const formData=new FormData()
-
-formData.append("chatId",currentChatId)
-formData.append("question",text)
-formData.append("mode",currentMode)
-
-if(pendingImage){
-formData.append("file",pendingImage)
-}
-
-document.getElementById("question").value=""
-pendingImage=null
-
-const res=await fetch("/followup",{method:"POST",body:formData})
-
-const data=await res.json()
-
-addAI(data.reply)
-
-}
-
-async function loadChats(){
-
-const res=await fetch("/chats")
-
-const chats=await res.json()
-
-chatList.innerHTML=""
-
-chats.reverse().forEach(chat=>{
-
-const div=document.createElement("div")
-div.className="chatItem"
-
-const title=document.createElement("span")
-title.innerText=chat.title || "Untitled Chat"
-
-const menu=document.createElement("div")
-menu.className="menu"
-menu.innerText="⋯"
-
-const dropdown=document.createElement("div")
-dropdown.className="menuDropdown"
-
-const rename=document.createElement("button")
-rename.innerText="Rename"
-
-rename.onclick=async (e)=>{
-
-e.stopPropagation()
-
-const newTitle=prompt("New title")
-if(!newTitle) return
-
-await fetch("/rename-chat",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({id:chat.id,title:newTitle})
-})
-
-title.innerText=newTitle
-dropdown.style.display="none"
-
-}
-
-const del=document.createElement("button")
-del.innerText="Delete"
-
-del.onclick=async (e)=>{
-
-e.stopPropagation()
-
-await fetch("/delete-chat",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({id:chat.id})
-})
-
-dropdown.style.display="none"
-loadChats()
-
-}
-
-dropdown.appendChild(rename)
-dropdown.appendChild(del)
-
-menu.onclick=(e)=>{
-
-e.stopPropagation()
-
-document.querySelectorAll(".menuDropdown").forEach(m=>{
-m.style.display="none"
-})
-
-dropdown.style.display="flex"
-
-}
-
-div.appendChild(title)
-div.appendChild(menu)
-div.appendChild(dropdown)
-
-div.onclick=()=>{
-
-currentChatId=chat.id
-
-messages.innerHTML=""
-
-chat.messages.forEach(m=>{
-if(m.role==="user") addUser(m.content)
-else addAI(m.content)
-})
-
-closeSidebar()
-
-}
-
-chatList.appendChild(div)
-
-})
-
-}
-
-function startNew(){
-
-messages.innerHTML=""
-document.getElementById("ideaForm").style.display="block"
-closeSidebar()
-
-}
-
-document.addEventListener("click",()=>{
-document.querySelectorAll(".menuDropdown").forEach(m=>{
-m.style.display="none"
-})
-})
-
-loadChats()
 
 </script>
 
