@@ -60,6 +60,7 @@ background:#020617;
 border:1px solid #334155;
 border-radius:6px;
 flex-direction:column;
+z-index:1000;
 }
 
 .menuDropdown button{
@@ -440,17 +441,19 @@ dropdown.className="menuDropdown"
 const rename=document.createElement("button")
 rename.innerText="Rename"
 
-rename.onclick=()=>{
+rename.onclick=async ()=>{
 
 const newTitle=prompt("New title")
 
-fetch("/rename-chat",{
+if(!newTitle) return
 
+await fetch("/rename-chat",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({id:chat.id,title:newTitle})
+})
 
-}).then(loadChats)
+loadChats()
 
 }
 
@@ -460,11 +463,9 @@ del.innerText="Delete"
 del.onclick=()=>{
 
 fetch("/delete-chat",{
-
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({id:chat.id})
-
 }).then(loadChats)
 
 }
@@ -476,8 +477,11 @@ menu.onclick=(e)=>{
 
 e.stopPropagation()
 
-dropdown.style.display =
-dropdown.style.display==="flex" ? "none" : "flex"
+document.querySelectorAll(".menuDropdown").forEach(m=>{
+m.style.display="none"
+})
+
+dropdown.style.display="flex"
 
 }
 
