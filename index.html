@@ -367,12 +367,10 @@ const div=document.createElement("div")
 div.className="message user"
 div.innerText=text
 messages.appendChild(div)
+messages.scrollTop=messages.scrollHeight
 }
 
 /* KEYBOARD HANDLING */
-
-/* Desktop: Enter send, Shift+Enter newline */
-/* Mobile: Enter newline */
 
 textarea.addEventListener("keydown",function(e){
 
@@ -387,22 +385,35 @@ sendMessage()
 
 })
 
-/* IMAGE PREVIEW */
+/* IMAGE PREVIEW FIX */
 
 document.getElementById("imageUpload").addEventListener("change",function(){
+
 const file=this.files[0]
 if(!file) return
+
 pendingImage=file
+
 const reader=new FileReader()
-reader.onload=e=>{
+
+reader.onload=function(e){
+
 const div=document.createElement("div")
 div.className="message user"
+
 const img=document.createElement("img")
 img.src=e.target.result
+
 div.appendChild(img)
+
 messages.appendChild(div)
+
+messages.scrollTop=messages.scrollHeight
+
 }
+
 reader.readAsDataURL(file)
+
 })
 
 /* IDEA FORM */
