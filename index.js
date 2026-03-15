@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS messages (
 function requireLogin(req,res,next){
 
  if(!req.session.userId){
-  return res.status(401).json({error:"not logged in"})
+  return res.redirect("/login.html")
  }
 
  next()
@@ -100,16 +100,22 @@ async function generateAITitle(text){
 
 }
 
-/* LANDING */
+/* LANDING PAGE */
 
 app.get("/",(req,res)=>{
  res.sendFile(path.join(__dirname,"landing.html"))
 })
 
-/* DASHBOARD */
+/* DASHBOARD (LOGIN PROTECTED) */
 
 app.get("/dashboard",(req,res)=>{
+
+ if(!req.session.userId){
+  return res.redirect("/login.html")
+ }
+
  res.sendFile(path.join(__dirname,"index.html"))
+
 })
 
 /* SIGNUP */
@@ -158,7 +164,10 @@ app.post("/login", async (req,res)=>{
 
  req.session.userId = user.id
 
- res.json({status:"logged in"})
+ res.json({
+  status:"logged in",
+  redirect:"/dashboard"
+ })
 
 })
 
@@ -166,7 +175,7 @@ app.post("/login", async (req,res)=>{
 
 app.get("/logout",(req,res)=>{
  req.session.destroy(()=>{
-  res.json({status:"logged out"})
+  res.redirect("/")
  })
 })
 
@@ -368,7 +377,7 @@ app.get("/chats", requireLogin, (req,res)=>{
 
 })
 
-/* RENAME */
+/* RENAME CHAT */
 
 app.post("/rename-chat", requireLogin, (req,res)=>{
 
@@ -382,7 +391,7 @@ app.post("/rename-chat", requireLogin, (req,res)=>{
 
 })
 
-/* DELETE */
+/* DELETE CHAT */
 
 app.post("/delete-chat", requireLogin, (req,res)=>{
 
@@ -395,7 +404,7 @@ app.post("/delete-chat", requireLogin, (req,res)=>{
 
 })
 
-/* STATIC */
+/* STATIC FILES */
 
 app.use(express.static(path.join(__dirname)))
 

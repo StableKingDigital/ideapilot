@@ -27,6 +27,7 @@ width:320px;
 
 h2{
 margin-top:0;
+text-align:center;
 }
 
 input{
@@ -47,6 +48,11 @@ border:none;
 border-radius:6px;
 color:white;
 cursor:pointer;
+font-size:15px;
+}
+
+button:hover{
+opacity:0.9;
 }
 
 p{
@@ -59,6 +65,14 @@ color:#22c55e;
 text-decoration:none;
 }
 
+#error{
+color:#f87171;
+font-size:13px;
+margin-bottom:10px;
+text-align:center;
+display:none;
+}
+
 </style>
 </head>
 
@@ -67,6 +81,8 @@ text-decoration:none;
 <div class="card">
 
 <h2>Login</h2>
+
+<div id="error"></div>
 
 <input id="email" placeholder="Email">
 <input id="password" type="password" placeholder="Password">
@@ -79,10 +95,27 @@ text-decoration:none;
 
 <script>
 
+/* allow ENTER key login */
+
+document.addEventListener("keydown",function(e){
+if(e.key==="Enter"){
+login()
+}
+})
+
 async function login(){
 
-const email=document.getElementById("email").value
-const password=document.getElementById("password").value
+const email=document.getElementById("email").value.trim()
+const password=document.getElementById("password").value.trim()
+const errorBox=document.getElementById("error")
+
+errorBox.style.display="none"
+
+if(!email || !password){
+errorBox.innerText="Please enter email and password"
+errorBox.style.display="block"
+return
+}
 
 const res=await fetch("/login",{
 method:"POST",
@@ -93,9 +126,16 @@ body:JSON.stringify({email,password})
 const data=await res.json()
 
 if(data.status){
-window.location="/dashboard"
+
+/* use backend redirect */
+
+window.location = data.redirect || "/dashboard"
+
 }else{
-alert(data.error)
+
+errorBox.innerText = data.error || "Login failed"
+errorBox.style.display="block"
+
 }
 
 }
