@@ -105,6 +105,15 @@ return res.redirect("/")
 res.sendFile(path.join(__dirname,"index.html"))
 })
 
+/* RESET SESSION (VERY USEFUL FOR TESTING) */
+
+app.get("/reset",(req,res)=>{
+req.session.destroy(()=>{
+res.clearCookie("connect.sid")
+res.redirect("/")
+})
+})
+
 /* SIGNUP */
 
 app.post("/signup", async (req,res)=>{
