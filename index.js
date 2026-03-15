@@ -154,7 +154,7 @@ res.status(500).json({error:"AI error"})
 
 })
 
-/* FOLLOWUP CHAT */
+/* FOLLOWUP CHAT (IMAGE ANALYSIS WORKS HERE) */
 
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
@@ -300,7 +300,9 @@ res.json({status:"deleted"})
 
 app.use(express.static(path.join(__dirname)))
 
-app.listen(PORT,()=>{
-console.log("IdeaPilot running on [http://localhost:"+PORT](http://localhost:%22+PORT))
+/* SERVER START */
+
+app.listen(PORT,"0.0.0.0",()=>{
+console.log("IdeaPilot running on port "+PORT)
 })
 
