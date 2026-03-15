@@ -9,7 +9,7 @@ const app = express()
 const PORT = process.env.PORT || 3000
 
 const openai = new OpenAI({
-apiKey: process.env.OPENAI_API_KEY
+ apiKey: process.env.OPENAI_API_KEY
 })
 
 const upload = multer({ storage: multer.memoryStorage() })
@@ -20,92 +20,96 @@ app.use(express.json())
 
 const db = new Database("ideapilot.db")
 
-db.prepare(`CREATE TABLE IF NOT EXISTS chats (
+db.prepare(`
+CREATE TABLE IF NOT EXISTS chats (
  id TEXT PRIMARY KEY,
  title TEXT,
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)`).run()
+)
+`).run()
 
-db.prepare(`CREATE TABLE IF NOT EXISTS messages (
+db.prepare(`
+CREATE TABLE IF NOT EXISTS messages (
  id INTEGER PRIMARY KEY AUTOINCREMENT,
  chat_id TEXT,
  role TEXT,
  content TEXT,
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)`).run()
+)
+`).run()
 
 /* AI TITLE GENERATOR */
 
 async function generateAITitle(text){
 
-try{
+ try{
 
-const completion = await openai.chat.completions.create({
-model:"gpt-4o-mini",
-messages:[
-{role:"system",content:"Create a short chat title (3-6 words)."},
-{role:"user",content:text}
-],
-max_tokens:20
-})
+  const completion = await openai.chat.completions.create({
+   model:"gpt-4o-mini",
+   messages:[
+    {role:"system",content:"Create a short chat title (3–6 words)."},
+    {role:"user",content:text}
+   ],
+   max_tokens:20
+  })
 
-return completion.choices[0].message.content.trim()
+  return completion.choices[0].message.content.trim()
 
-}catch(err){
+ }catch(err){
 
-return text.split(" ").slice(0,6).join(" ")
+  return text.split(" ").slice(0,6).join(" ")
 
-}
+ }
 
 }
 
 /* LANDING PAGE */
 
 app.get("/",(req,res)=>{
-res.sendFile(path.join(__dirname,"landing.html"))
+ res.sendFile(path.join(__dirname,"landing.html"))
 })
 
 /* DASHBOARD */
 
 app.get("/dashboard",(req,res)=>{
-res.sendFile(path.join(__dirname,"index.html"))
+ res.sendFile(path.join(__dirname,"index.html"))
 })
 
 /* CREATE CHAT */
 
 app.post("/create-chat",(req,res)=>{
 
-const chatId = Date.now().toString()
+ const chatId = Date.now().toString()
 
-db.prepare(
-"INSERT INTO chats (id,title) VALUES (?,?)"
-).run(chatId,"New Chat")
+ db.prepare(
+  "INSERT INTO chats (id,title) VALUES (?,?)"
+ ).run(chatId,"New Chat")
 
-res.json({chatId})
+ res.json({chatId})
 
 })
 
-/* GENERATE PLAN (STAGE 3 UPGRADE) */
+/* GENERATE PLAN (STAGE 3 ANALYSIS ENGINE) */
 
 app.post("/plan",async(req,res)=>{
 
-try{
+ try{
 
-const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
+  const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
 
-const prompt = `
-You are IdeaPilot — an AI startup analyst helping people evaluate and execute business ideas.
+  const prompt = `
+You are IdeaPilot — an AI startup analyst.
 
-User Idea Context
+Analyze the user's business idea carefully.
 
 Idea: ${idea}
 Why it matters: ${why}
 User skills: ${skills}
 Resources available: ${resources}
-Hours per week available: ${hours}
+Hours available weekly: ${hours}
 Income goal: ${incomeGoal} ${currency}
 
-Provide a clear analysis using the following sections:
+Provide a clear startup evaluation using these sections:
 
 Idea Clarified
 Who This Helps
@@ -124,139 +128,176 @@ Success Potential
 
 Rules:
 
-• Write clear readable paragraphs
-• Avoid markdown symbols
-• Feasibility score must include a number out of 10
-• Startup capital should give a realistic range
-• Success Potential should summarize whether the idea is worth pursuing
+• Write natural readable paragraphs
+• Do NOT use markdown symbols
+• Feasibility Score must include a number out of 10
+• Startup Capital should provide a realistic range
+• Success Potential should summarize the overall viability of the idea
 `
 
-const completion = await openai.chat.completions.create({
-model:"gpt-4o-mini",
-messages:[
-{role:"system",content:"You are IdeaPilot, a calm and experienced startup advisor."},
-{role:"user",content:prompt}
-]
+  const completion = await openai.chat.completions.create({
+   model:"gpt-4o-mini",
+   messages:[
+    {role:"system",content:"You are IdeaPilot, an experienced startup advisor helping people evaluate business ideas."},
+    {role:"user",content:prompt}
+   ]
+  })
+
+  const reply = completion.choices[0].message.content
+
+  const chatId = Date.now().toString()
+
+  db.prepare(
+   "INSERT INTO chats (id,title) VALUES (?,?)"
+  ).run(chatId,idea)
+
+  db.prepare(
+   "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
+  ).run(chatId,"assistant",reply)
+
+  res.json({chatId,reply})
+
+ }catch(err){
+
+  console.log(err)
+  res.status(500).json({error:"AI error"})
+
+ }
+
 })
 
-const reply = completion.choices[0].message.content
-
-const chatId = Date.now().toString()
-
-db.prepare(
-"INSERT INTO chats (id,title) VALUES (?,?)"
-).run(chatId,idea)
-
-db.prepare(
-"INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
-).run(chatId,"assistant",reply)
-
-res.json({chatId,reply})
-
-}catch(err){
-
-console.log(err)
-res.status(500).json({error:"AI error"})
-
-}
-
-})
-
-/* FOLLOWUP CHAT (MEMORY UPGRADE) */
+/* FOLLOWUP CHAT (SMART REFINEMENT MODE) */
 
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
-try{
+ try{
 
-const {chatId,question,mode}=req.body
+  const {chatId,question,mode}=req.body
 
-const messages = db.prepare(
-"SELECT role,content FROM messages WHERE chat_id=?"
-).all(chatId)
+  const messages = db.prepare(
+   "SELECT role,content FROM messages WHERE chat_id=?"
+  ).all(chatId)
 
-let systemPrompt="You are IdeaPilot."
+  let systemPrompt = `
+You are IdeaPilot, an AI startup advisor.
 
-if(mode==="idea")
-systemPrompt="You are IdeaPilot, a startup advisor. Use the conversation history to refine the user's ideas and improve feasibility."
+Use the previous conversation to understand the user's business idea.
 
-if(mode==="research")
-systemPrompt="You are IdeaPilot acting as a market researcher. Use earlier messages to analyze competition, demand, and trends."
+Response behavior rules:
 
-if(mode==="build")
-systemPrompt="You are IdeaPilot acting as a startup builder. Use previous chat context to guide the user step-by-step in execution."
+• If the user asks about improving or strengthening the idea, provide an Idea Refinement Analysis with:
+  - Niche Opportunity
+  - Differentiation Strategy
+  - Cost Optimization
+  - Customer Acquisition Strategy
+  - Early Validation Strategy
+  - Refined Idea Direction
 
-let history = messages.map(m=>({
-role:m.role,
-content:m.content
-}))
+• If the user asks normal questions, answer naturally like a business advisor.
 
-let userMessage
+• If the user asks about execution, guide them step-by-step.
 
-if(req.file){
+• Keep answers clear and practical.
+`
 
-const base64 = req.file.buffer.toString("base64")
+  if(mode==="research"){
+   systemPrompt = `
+You are IdeaPilot acting as a market researcher.
 
-userMessage={
-role:"user",
-content:[
-{type:"text",text:question || "Analyze this image."},
-{
-type:"image_url",
-image_url:{url:`data:${req.file.mimetype};base64,${base64}`}
-}
-]
-}
+Use previous chat context to analyze:
 
-}else{
+• market demand
+• competition
+• trends
+• customer behavior
 
-userMessage={
-role:"user",
-content:question
-}
+Provide realistic market insight.
+`
+  }
 
-}
+  if(mode==="build"){
+   systemPrompt = `
+You are IdeaPilot acting as a startup builder.
 
-history.push(userMessage)
+Use previous messages to guide the user step-by-step in executing the business idea.
 
-const completion = await openai.chat.completions.create({
-model:"gpt-4o-mini",
-messages:[
-{role:"system",content:systemPrompt},
-...history
-]
-})
+Focus on practical steps and execution strategy.
+`
+  }
 
-const reply = completion.choices[0].message.content
+  let history = messages.map(m=>({
+   role:m.role,
+   content:m.content
+  }))
 
-db.prepare(
-"INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
-).run(chatId,"user",question || "[image uploaded]")
+  let userMessage
 
-db.prepare(
-"INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
-).run(chatId,"assistant",reply)
+  if(req.file){
 
-const chat = db.prepare(
-"SELECT title FROM chats WHERE id=?"
-).get(chatId)
+   const base64 = req.file.buffer.toString("base64")
 
-if(chat && chat.title==="New Chat" && question){
+   userMessage={
+    role:"user",
+    content:[
+     {type:"text",text:question || "Analyze this image."},
+     {
+      type:"image_url",
+      image_url:{url:`data:${req.file.mimetype};base64,${base64}`}
+     }
+    ]
+   }
 
-const title = await generateAITitle(question)
+  }else{
 
-db.prepare(
-"UPDATE chats SET title=? WHERE id=?"
-).run(title,chatId)
+   userMessage={
+    role:"user",
+    content:question
+   }
 
-}
+  }
 
-res.json({reply})
+  history.push(userMessage)
 
-}catch(err){
+  const completion = await openai.chat.completions.create({
+   model:"gpt-4o-mini",
+   messages:[
+    {role:"system",content:systemPrompt},
+    ...history
+   ]
+  })
 
-console.log(err)
-res.json({reply:"AI error"})
-}
+  const reply = completion.choices[0].message.content
+
+  db.prepare(
+   "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
+  ).run(chatId,"user",question || "[image uploaded]")
+
+  db.prepare(
+   "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
+  ).run(chatId,"assistant",reply)
+
+  const chat = db.prepare(
+   "SELECT title FROM chats WHERE id=?"
+  ).get(chatId)
+
+  if(chat && chat.title==="New Chat" && question){
+
+   const title = await generateAITitle(question)
+
+   db.prepare(
+    "UPDATE chats SET title=? WHERE id=?"
+   ).run(title,chatId)
+
+  }
+
+  res.json({reply})
+
+ }catch(err){
+
+  console.log(err)
+  res.json({reply:"AI error"})
+
+ }
 
 })
 
@@ -264,21 +305,21 @@ res.json({reply:"AI error"})
 
 app.get("/chats",(req,res)=>{
 
-const chats = db.prepare(
-"SELECT * FROM chats ORDER BY created_at DESC"
-).all()
+ const chats = db.prepare(
+  "SELECT * FROM chats ORDER BY created_at DESC"
+ ).all()
 
-const result = chats.map(chat=>{
+ const result = chats.map(chat=>{
 
-const msgs = db.prepare(
-"SELECT role,content FROM messages WHERE chat_id=?"
-).all(chat.id)
+  const msgs = db.prepare(
+   "SELECT role,content FROM messages WHERE chat_id=?"
+  ).all(chat.id)
 
-return {...chat,messages:msgs}
+  return {...chat,messages:msgs}
 
-})
+ })
 
-res.json(result)
+ res.json(result)
 
 })
 
@@ -286,13 +327,13 @@ res.json(result)
 
 app.post("/rename-chat",(req,res)=>{
 
-const {id,title}=req.body
+ const {id,title}=req.body
 
-db.prepare(
-"UPDATE chats SET title=? WHERE id=?"
-).run(title,id)
+ db.prepare(
+  "UPDATE chats SET title=? WHERE id=?"
+ ).run(title,id)
 
-res.json({status:"renamed"})
+ res.json({status:"renamed"})
 
 })
 
@@ -300,12 +341,12 @@ res.json({status:"renamed"})
 
 app.post("/delete-chat",(req,res)=>{
 
-const {id}=req.body
+ const {id}=req.body
 
-db.prepare("DELETE FROM chats WHERE id=?").run(id)
-db.prepare("DELETE FROM messages WHERE chat_id=?").run(id)
+ db.prepare("DELETE FROM chats WHERE id=?").run(id)
+ db.prepare("DELETE FROM messages WHERE chat_id=?").run(id)
 
-res.json({status:"deleted"})
+ res.json({status:"deleted"})
 
 })
 
@@ -316,5 +357,5 @@ app.use(express.static(path.join(__dirname)))
 /* SERVER START */
 
 app.listen(PORT,"0.0.0.0",()=>{
-console.log("IdeaPilot running on port "+PORT)
+ console.log("IdeaPilot running on port "+PORT)
 })
