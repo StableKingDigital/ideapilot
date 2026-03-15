@@ -18,7 +18,7 @@ const upload = multer({ storage: multer.memoryStorage() })
 
 app.use(express.json())
 
-/* STATIC FILES (IMPORTANT — placed early) */
+/* STATIC FILES */
 
 app.use(express.static(path.join(__dirname)))
 
@@ -99,13 +99,7 @@ return text.split(" ").slice(0,6).join(" ")
 /* LANDING PAGE */
 
 app.get("/",(req,res)=>{
-
-if(req.session.userId){
-return res.redirect("/dashboard")
-}
-
 res.sendFile(path.join(__dirname,"landing.html"))
-
 })
 
 /* LOGIN PAGE */
