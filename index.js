@@ -85,7 +85,7 @@ res.json({chatId})
 
 })
 
-/* GENERATE PLAN */
+/* GENERATE PLAN (STAGE 3 UPGRADE) */
 
 app.post("/plan",async(req,res)=>{
 
@@ -94,16 +94,18 @@ try{
 const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
 
 const prompt = `
-You are IdeaPilot, an AI system helping people turn ideas into execution paths.
+You are IdeaPilot — an AI startup analyst helping people evaluate and execute business ideas.
+
+User Idea Context
 
 Idea: ${idea}
-Why: ${why}
-Skills: ${skills}
-Resources: ${resources}
-Hours: ${hours}
+Why it matters: ${why}
+User skills: ${skills}
+Resources available: ${resources}
+Hours per week available: ${hours}
 Income goal: ${incomeGoal} ${currency}
 
-Write sections:
+Provide a clear analysis using the following sections:
 
 Idea Clarified
 Who This Helps
@@ -118,15 +120,21 @@ Feasibility Score
 Risk Level
 Startup Capital
 Execution Difficulty
+Success Potential
 
-Avoid markdown symbols.
-Write clean paragraphs.
+Rules:
+
+• Write clear readable paragraphs
+• Avoid markdown symbols
+• Feasibility score must include a number out of 10
+• Startup capital should give a realistic range
+• Success Potential should summarize whether the idea is worth pursuing
 `
 
 const completion = await openai.chat.completions.create({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:"You are IdeaPilot, a calm startup advisor."},
+{role:"system",content:"You are IdeaPilot, a calm and experienced startup advisor."},
 {role:"user",content:prompt}
 ]
 })
@@ -154,7 +162,7 @@ res.status(500).json({error:"AI error"})
 
 })
 
-/* FOLLOWUP CHAT (IMAGE ANALYSIS WORKS HERE) */
+/* FOLLOWUP CHAT (MEMORY UPGRADE) */
 
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
@@ -168,9 +176,14 @@ const messages = db.prepare(
 
 let systemPrompt="You are IdeaPilot."
 
-if(mode==="idea") systemPrompt="Help refine ideas and opportunities."
-if(mode==="research") systemPrompt="Act as a market researcher."
-if(mode==="build") systemPrompt="Act as a startup builder focusing on execution."
+if(mode==="idea")
+systemPrompt="You are IdeaPilot, a startup advisor. Use the conversation history to refine the user's ideas and improve feasibility."
+
+if(mode==="research")
+systemPrompt="You are IdeaPilot acting as a market researcher. Use earlier messages to analyze competition, demand, and trends."
+
+if(mode==="build")
+systemPrompt="You are IdeaPilot acting as a startup builder. Use previous chat context to guide the user step-by-step in execution."
 
 let history = messages.map(m=>({
 role:m.role,
@@ -305,4 +318,3 @@ app.use(express.static(path.join(__dirname)))
 app.listen(PORT,"0.0.0.0",()=>{
 console.log("IdeaPilot running on port "+PORT)
 })
-
