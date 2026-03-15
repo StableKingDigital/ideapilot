@@ -247,6 +247,76 @@ res.json({reply:"AI error"})
 
 })
 
+/* STREAM FOLLOWUP (FRONTEND EXPECTS THIS ROUTE) */
+
+app.post("/followup-stream",upload.single("file"),async(req,res)=>{
+
+try{
+
+const {chatId,question,mode}=req.body
+
+const messages = db.prepare(
+"SELECT role,content FROM messages WHERE chat_id=?"
+).all(chatId)
+
+let systemPrompt="You are IdeaPilot."
+
+if(mode==="idea") systemPrompt="Help refine ideas and opportunities."
+if(mode==="research") systemPrompt="Act as a market researcher."
+if(mode==="build") systemPrompt="Act as a startup builder focusing on execution."
+
+let history = messages.map(m=>({
+role:m.role,
+content:m.content
+}))
+
+history.push({
+role:"user",
+content:question
+})
+
+const completion = await openai.chat.completions.create({
+model:"gpt-4o-mini",
+messages:[
+{role:"system",content:systemPrompt},
+...history
+]
+})
+
+const reply = completion.choices[0].message.content
+
+db.prepare(
+"INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
+).run(chatId,"user",question)
+
+db.prepare(
+"INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
+).run(chatId,"assistant",reply)
+
+const chat = db.prepare(
+"SELECT title FROM chats WHERE id=?"
+).get(chatId)
+
+if(chat && chat.title==="New Chat" && question){
+
+const title = await generateAITitle(question)
+
+db.prepare(
+"UPDATE chats SET title=? WHERE id=?"
+).run(title,chatId)
+
+}
+
+res.json({reply})
+
+}catch(err){
+
+console.log(err)
+res.json({reply:"AI error"})
+}
+
+})
+
 /* GET CHATS */
 
 app.get("/chats",(req,res)=>{
@@ -302,7 +372,7 @@ app.use(express.static(path.join(__dirname)))
 
 /* SERVER */
 
-app.listen(PORT, "0.0.0.0", () => {
-console.log("IdeaPilot running on http://localhost:" + PORT)
+app.listen(PORT,"0.0.0.0",()=>{
+console.log("IdeaPilot running on port "+PORT)
 })
 
