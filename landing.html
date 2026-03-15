@@ -4,6 +4,8 @@
 
 <title>IdeaPilot</title>
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
 
 body{
@@ -11,12 +13,51 @@ margin:0;
 font-family:Arial, Helvetica, sans-serif;
 background:linear-gradient(180deg,#020617,#020617,#0f172a);
 color:white;
+scroll-behavior:smooth;
 }
 
 .container{
 max-width:1100px;
 margin:auto;
 padding:60px 20px;
+}
+
+/* NAVBAR */
+
+.nav{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:20px 30px;
+border-bottom:1px solid #1e293b;
+}
+
+.logo{
+font-size:20px;
+font-weight:bold;
+background:linear-gradient(90deg,#22c55e,#38bdf8);
+-webkit-background-clip:text;
+color:transparent;
+}
+
+.navButtons button{
+margin-left:10px;
+padding:10px 20px;
+border-radius:6px;
+cursor:pointer;
+font-size:14px;
+}
+
+.navLogin{
+background:none;
+border:1px solid #334155;
+color:white;
+}
+
+.navSignup{
+background:#22c55e;
+border:none;
+color:white;
 }
 
 /* HERO */
@@ -147,6 +188,15 @@ line-height:1.6;
 color:#cbd5f5;
 }
 
+/* TRUST SECTION */
+
+.trust{
+text-align:center;
+margin-top:40px;
+color:#94a3b8;
+font-size:14px;
+}
+
 /* FOOTER */
 
 .footer{
@@ -161,11 +211,61 @@ margin-top:80px;
 color:white;
 }
 
+.footerLinks{
+margin-top:15px;
+}
+
+.footerLinks a{
+margin:0 10px;
+color:#94a3b8;
+text-decoration:none;
+}
+
+.footerLinks a:hover{
+color:white;
+}
+
+/* MOBILE */
+
+@media(max-width:700px){
+
+.hero h1{
+font-size:40px;
+}
+
+.hero p{
+font-size:17px;
+}
+
+}
+
 </style>
 
 </head>
 
 <body>
+
+<!-- NAVBAR -->
+
+<div class="nav">
+
+<div class="logo">IdeaPilot</div>
+
+<div class="navButtons">
+
+<button class="navLogin" onclick="window.location='/login.html'">
+Login
+</button>
+
+<button class="navSignup" onclick="window.location='/signup.html'">
+Sign Up
+</button>
+
+</div>
+
+</div>
+
+<!-- HERO -->
 
 <div class="container hero">
 
@@ -188,7 +288,13 @@ Login
 
 </div>
 
+<div class="trust">
+No credit card required • Start analyzing ideas instantly
 </div>
+
+</div>
+
+<!-- HOW IT WORKS -->
 
 <div class="container section">
 
@@ -221,6 +327,8 @@ Ask follow-up questions, explore strategies, analyze markets, and improve your p
 
 </div>
 
+<!-- USE CASES -->
+
 <div class="container section">
 
 <h2>What You Can Use IdeaPilot For</h2>
@@ -251,6 +359,8 @@ Ask follow-up questions, explore strategies, analyze markets, and improve your p
 
 </div>
 
+<!-- EXAMPLE -->
+
 <div class="container section">
 
 <h2>Example Idea</h2>
@@ -262,12 +372,14 @@ Ask follow-up questions, explore strategies, analyze markets, and improve your p
 </p>
 
 <p style="color:#94a3b8">
-IdeaPilot helps transform ideas into structured direction plans with actions, risks, and growth paths.
+IdeaPilot transforms raw ideas into structured direction plans with actions, risks, and growth paths.
 </p>
 
 </div>
 
 </div>
+
+<!-- FOOTER -->
 
 <div class="footer">
 
@@ -278,6 +390,14 @@ IdeaPilot — Turn Ideas Into Execution Paths
 <p>
 Created by <b>Stable King Alf</b>
 </p>
+
+<div class="footerLinks">
+
+<a href="/">Home</a>
+<a href="/login.html">Login</a>
+<a href="/signup.html">Sign Up</a>
+
+</div>
 
 </div>
 

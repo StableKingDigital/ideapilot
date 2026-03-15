@@ -103,10 +103,37 @@ async function generateAITitle(text){
 /* LANDING PAGE */
 
 app.get("/",(req,res)=>{
+
+ if(req.session.userId){
+  return res.redirect("/dashboard")
+ }
+
  res.sendFile(path.join(__dirname,"landing.html"))
 })
 
-/* DASHBOARD (LOGIN PROTECTED) */
+/* LOGIN PAGE */
+
+app.get("/login.html",(req,res)=>{
+
+ if(req.session.userId){
+  return res.redirect("/dashboard")
+ }
+
+ res.sendFile(path.join(__dirname,"login.html"))
+})
+
+/* SIGNUP PAGE */
+
+app.get("/signup.html",(req,res)=>{
+
+ if(req.session.userId){
+  return res.redirect("/dashboard")
+ }
+
+ res.sendFile(path.join(__dirname,"signup.html"))
+})
+
+/* DASHBOARD */
 
 app.get("/dashboard",(req,res)=>{
 
@@ -229,14 +256,6 @@ Risk Level
 Startup Capital
 Execution Difficulty
 Success Potential
-
-Rules:
-
-Write natural readable paragraphs.
-Avoid markdown symbols.
-Feasibility Score must include a number out of 10.
-Startup Capital should provide a realistic range.
-Success Potential should summarize if the idea is worth pursuing.
 `
 
   const completion = await openai.chat.completions.create({
@@ -282,27 +301,6 @@ app.post("/followup", requireLogin, upload.single("file"), async(req,res)=>{
    "SELECT role,content FROM messages WHERE chat_id=?"
   ).all(chatId)
 
-  let systemPrompt = `
-You are IdeaPilot, an AI startup advisor.
-
-Use the conversation history to understand the user's business ideas.
-
-Response behavior:
-
-If user asks to improve idea → Idea Refinement Analysis
-If user asks to compare ideas → Idea Comparison
-If user asks how to start → Execution Roadmap
-Otherwise respond normally like a startup advisor.
-`
-
-  if(mode==="research"){
-   systemPrompt="Act as a market researcher analyzing demand and competition."
-  }
-
-  if(mode==="build"){
-   systemPrompt="Act as a startup builder guiding execution steps."
-  }
-
   let history = messages.map(m=>({
    role:m.role,
    content:m.content
@@ -315,10 +313,7 @@ Otherwise respond normally like a startup advisor.
 
   const completion = await openai.chat.completions.create({
    model:"gpt-4o-mini",
-   messages:[
-    {role:"system",content:systemPrompt},
-    ...history
-   ]
+   messages:history
   })
 
   const reply = completion.choices[0].message.content
@@ -331,20 +326,6 @@ Otherwise respond normally like a startup advisor.
    "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
   ).run(chatId,"assistant",reply)
 
-  const chat = db.prepare(
-   "SELECT title FROM chats WHERE id=?"
-  ).get(chatId)
-
-  if(chat && chat.title==="New Chat"){
-
-   const title = await generateAITitle(question)
-
-   db.prepare(
-    "UPDATE chats SET title=? WHERE id=?"
-   ).run(title,chatId)
-
-  }
-
   res.json({reply})
 
  }catch(err){
@@ -355,7 +336,7 @@ Otherwise respond normally like a startup advisor.
 
 })
 
-/* GET USER CHATS */
+/* GET CHATS */
 
 app.get("/chats", requireLogin, (req,res)=>{
 
@@ -377,7 +358,7 @@ app.get("/chats", requireLogin, (req,res)=>{
 
 })
 
-/* RENAME CHAT */
+/* RENAME */
 
 app.post("/rename-chat", requireLogin, (req,res)=>{
 
@@ -391,7 +372,7 @@ app.post("/rename-chat", requireLogin, (req,res)=>{
 
 })
 
-/* DELETE CHAT */
+/* DELETE */
 
 app.post("/delete-chat", requireLogin, (req,res)=>{
 
@@ -404,7 +385,7 @@ app.post("/delete-chat", requireLogin, (req,res)=>{
 
 })
 
-/* STATIC FILES */
+/* STATIC */
 
 app.use(express.static(path.join(__dirname)))
 
