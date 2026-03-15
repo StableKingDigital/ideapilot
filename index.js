@@ -16,9 +16,15 @@ const upload = multer({ storage: multer.memoryStorage() })
 
 app.use(express.json())
 
-/* DATABASE */
+/* DATABASE SETUP */
 
-const db = new sqlite3.Database("./ideapilot.db")
+const db = new sqlite3.Database("./ideapilot.db", (err)=>{
+ if(err){
+  console.error("Database error:", err)
+ }else{
+  console.log("SQLite connected")
+ }
+})
 
 db.serialize(()=>{
 
@@ -51,14 +57,8 @@ async function generateAITitle(text){
  const completion = await openai.chat.completions.create({
  model:"gpt-4o-mini",
  messages:[
- {
- role:"system",
- content:"Create a short clean chat title (3-6 words). No punctuation."
- },
- {
- role:"user",
- content:text
- }
+ {role:"system",content:"Create a short clean chat title (3-6 words). No punctuation."},
+ {role:"user",content:text}
  ],
  max_tokens:20
  })
@@ -95,9 +95,12 @@ app.post("/create-chat",(req,res)=>{
  const chatId = Date.now().toString()
 
  db.run(
- `INSERT INTO chats(id,title) VALUES(?,?)`,
+ "INSERT INTO chats(id,title) VALUES(?,?)",
  [chatId,"New Chat"],
- ()=>{ res.json({chatId}) }
+ function(err){
+  if(err) return res.status(500).json({error:"DB error"})
+  res.json({chatId})
+ }
  )
 
 })
@@ -153,13 +156,10 @@ Write clean readable paragraphs.
 
  const chatId = Date.now().toString()
 
- db.run(
- `INSERT INTO chats(id,title) VALUES(?,?)`,
- [chatId,idea]
- )
+ db.run("INSERT INTO chats(id,title) VALUES(?,?)",[chatId,idea])
 
  db.run(
- `INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)`,
+ "INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)",
  [chatId,"assistant",reply]
  )
 
@@ -175,7 +175,7 @@ Write clean readable paragraphs.
 })
 
 
-/* FOLLOW UP CHAT */
+/* FOLLOWUP CHAT */
 
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
@@ -184,7 +184,7 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  const {chatId,question,mode}=req.body
 
  db.all(
- `SELECT role,content FROM messages WHERE chat_id=?`,
+ "SELECT role,content FROM messages WHERE chat_id=?",
  [chatId],
  async(err,rows)=>{
 
@@ -213,9 +213,7 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  {type:"text",text:question || "Analyze this image."},
  {
  type:"image_url",
- image_url:{
- url:`data:${req.file.mimetype};base64,${base64Image}`
- }
+ image_url:{url:`data:${req.file.mimetype};base64,${base64Image}`}
  }
  ]
  }
@@ -241,24 +239,20 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  const reply = completion.choices[0].message.content
 
- /* SAVE USER MESSAGE */
-
  db.run(
- `INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)`,
+ "INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)",
  [chatId,"user",question || "[image uploaded]"]
  )
 
- /* SAVE AI MESSAGE */
-
  db.run(
- `INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)`,
+ "INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)",
  [chatId,"assistant",reply]
  )
 
- /* AI TITLE GENERATION */
+ /* AI TITLE */
 
  db.get(
- `SELECT title FROM chats WHERE id=?`,
+ "SELECT title FROM chats WHERE id=?",
  [chatId],
  async(err,row)=>{
 
@@ -267,7 +261,7 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  const aiTitle = await generateAITitle(question)
 
  db.run(
- `UPDATE chats SET title=? WHERE id=?`,
+ "UPDATE chats SET title=? WHERE id=?",
  [aiTitle,chatId]
  )
 
@@ -293,7 +287,7 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 app.get("/chats",(req,res)=>{
 
  db.all(
- `SELECT * FROM chats ORDER BY created_at DESC`,
+ "SELECT * FROM chats ORDER BY created_at DESC",
  [],
  (err,chats)=>{
 
@@ -303,7 +297,7 @@ app.get("/chats",(req,res)=>{
  return new Promise(resolve=>{
 
  db.all(
- `SELECT role,content FROM messages WHERE chat_id=?`,
+ "SELECT role,content FROM messages WHERE chat_id=?",
  [chat.id],
  (err,msgs)=>{
  chat.messages = msgs || []
@@ -329,7 +323,7 @@ app.post("/rename-chat",(req,res)=>{
  const {id,title}=req.body
 
  db.run(
- `UPDATE chats SET title=? WHERE id=?`,
+ "UPDATE chats SET title=? WHERE id=?",
  [title,id],
  ()=>{ res.json({status:"renamed"}) }
  )
@@ -343,8 +337,8 @@ app.post("/delete-chat",(req,res)=>{
 
  const {id}=req.body
 
- db.run(`DELETE FROM chats WHERE id=?`,[id])
- db.run(`DELETE FROM messages WHERE chat_id=?`,[id])
+ db.run("DELETE FROM chats WHERE id=?",[id])
+ db.run("DELETE FROM messages WHERE chat_id=?",[id])
 
  res.json({status:"deleted"})
 
