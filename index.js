@@ -10,6 +10,8 @@ const session = require("express-session")
 const app = express()
 const PORT = process.env.PORT || 3000
 
+app.set("trust proxy", 1)
+
 const openai = new OpenAI({
 apiKey: process.env.OPENAI_API_KEY
 })
@@ -17,24 +19,27 @@ apiKey: process.env.OPENAI_API_KEY
 const upload = multer({ storage: multer.memoryStorage() })
 
 app.use(express.json())
-
-/* STATIC FILES */
-
-app.use(express.static(path.join(__dirname)))
+app.use(express.urlencoded({ extended:true }))
 
 /* SESSION */
 
 app.use(session({
 secret: "ideapilot-secret",
 resave: false,
-saveUninitialized: false
+saveUninitialized: false,
+cookie:{
+httpOnly:true,
+secure:false
+}
 }))
+
+/* STATIC FILES */
+
+app.use(express.static(path.join(__dirname)))
 
 /* DATABASE */
 
 const db = new Database("ideapilot.db")
-
-/* USERS */
 
 db.prepare(`CREATE TABLE IF NOT EXISTS users (
  id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,16 +48,12 @@ db.prepare(`CREATE TABLE IF NOT EXISTS users (
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`).run()
 
-/* CHATS */
-
 db.prepare(`CREATE TABLE IF NOT EXISTS chats (
  id TEXT PRIMARY KEY,
  user_id INTEGER,
  title TEXT,
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`).run()
-
-/* MESSAGES */
 
 db.prepare(`CREATE TABLE IF NOT EXISTS messages (
  id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,17 +67,15 @@ db.prepare(`CREATE TABLE IF NOT EXISTS messages (
 
 function requireLogin(req,res,next){
 if(!req.session.userId){
-return res.redirect("/login.html")
+return res.redirect("/")
 }
 next()
 }
 
-/* AI TITLE GENERATOR */
+/* AI TITLE */
 
 async function generateAITitle(text){
-
 try{
-
 const completion = await openai.chat.completions.create({
 model:"gpt-4o-mini",
 messages:[
@@ -85,15 +84,10 @@ messages:[
 ],
 max_tokens:20
 })
-
 return completion.choices[0].message.content.trim()
-
-}catch(err){
-
+}catch{
 return text.split(" ").slice(0,6).join(" ")
-
 }
-
 }
 
 /* LANDING PAGE */
@@ -102,46 +96,18 @@ app.get("/",(req,res)=>{
 res.sendFile(path.join(__dirname,"landing.html"))
 })
 
-/* LOGIN PAGE */
-
-app.get("/login.html",(req,res)=>{
-
-if(req.session.userId){
-return res.redirect("/dashboard")
-}
-
-res.sendFile(path.join(__dirname,"login.html"))
-
-})
-
-/* SIGNUP PAGE */
-
-app.get("/signup.html",(req,res)=>{
-
-if(req.session.userId){
-return res.redirect("/dashboard")
-}
-
-res.sendFile(path.join(__dirname,"signup.html"))
-
-})
-
 /* DASHBOARD */
 
 app.get("/dashboard",(req,res)=>{
-
 if(!req.session.userId){
-return res.redirect("/login.html")
+return res.redirect("/")
 }
-
 res.sendFile(path.join(__dirname,"index.html"))
-
 })
 
 /* SIGNUP */
 
 app.post("/signup", async (req,res)=>{
-
 try{
 
 const {email,password} = req.body
@@ -154,12 +120,9 @@ db.prepare(
 
 res.json({status:"account created"})
 
-}catch(err){
-
+}catch{
 res.json({error:"email already exists"})
-
 }
-
 })
 
 /* LOGIN */
@@ -201,7 +164,7 @@ res.redirect("/")
 
 /* CREATE CHAT */
 
-app.post("/create-chat", requireLogin, (req,res)=>{
+app.post("/create-chat", requireLogin,(req,res)=>{
 
 const chatId = Date.now().toString()
 
@@ -282,7 +245,7 @@ res.status(500).json({error:"AI error"})
 
 })
 
-/* FOLLOWUP CHAT */
+/* FOLLOWUP */
 
 app.post("/followup", requireLogin, upload.single("file"), async(req,res)=>{
 
@@ -299,10 +262,7 @@ role:m.role,
 content:m.content
 }))
 
-history.push({
-role:"user",
-content:question
-})
+history.push({role:"user",content:question})
 
 const completion = await openai.chat.completions.create({
 model:"gpt-4o-mini",
@@ -325,13 +285,14 @@ res.json({reply})
 
 console.log(err)
 res.json({reply:"AI error"})
+
 }
 
 })
 
 /* GET CHATS */
 
-app.get("/chats", requireLogin, (req,res)=>{
+app.get("/chats", requireLogin,(req,res)=>{
 
 const chats = db.prepare(
 "SELECT * FROM chats WHERE user_id=? ORDER BY created_at DESC"
@@ -353,7 +314,7 @@ res.json(result)
 
 /* RENAME CHAT */
 
-app.post("/rename-chat", requireLogin, (req,res)=>{
+app.post("/rename-chat", requireLogin,(req,res)=>{
 
 const {id,title}=req.body
 
@@ -367,12 +328,17 @@ res.json({status:"renamed"})
 
 /* DELETE CHAT */
 
-app.post("/delete-chat", requireLogin, (req,res)=>{
+app.post("/delete-chat", requireLogin,(req,res)=>{
 
 const {id}=req.body
 
-db.prepare("DELETE FROM chats WHERE id=? AND user_id=?").run(id,req.session.userId)
-db.prepare("DELETE FROM messages WHERE chat_id=?").run(id)
+db.prepare(
+"DELETE FROM chats WHERE id=? AND user_id=?"
+).run(id,req.session.userId)
+
+db.prepare(
+"DELETE FROM messages WHERE chat_id=?"
+).run(id)
 
 res.json({status:"deleted"})
 
