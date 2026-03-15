@@ -43,8 +43,17 @@ margin:auto;
 line-height:1.6;
 }
 
-.startBtn{
+/* BUTTONS */
+
+.buttons{
 margin-top:40px;
+display:flex;
+justify-content:center;
+gap:15px;
+flex-wrap:wrap;
+}
+
+.startBtn{
 background:#22c55e;
 border:none;
 padding:16px 45px;
@@ -57,6 +66,21 @@ transition:0.2s;
 
 .startBtn:hover{
 background:#16a34a;
+}
+
+.loginBtn{
+background:#020617;
+border:1px solid #334155;
+padding:16px 45px;
+font-size:18px;
+border-radius:8px;
+cursor:pointer;
+color:white;
+transition:0.2s;
+}
+
+.loginBtn:hover{
+border-color:#22c55e;
 }
 
 /* SECTIONS */
@@ -143,23 +167,28 @@ color:white;
 
 <body>
 
-
 <div class="container hero">
 
 <h1>IdeaPilot</h1>
 
 <p>
-Turn ideas into clear execution paths.  
+Turn ideas into clear execution paths.
 Describe any idea — business, side hustle, brand, or project — and IdeaPilot will help you analyze it, structure it, and move it forward.
 </p>
 
-<button class="startBtn" onclick="window.location='/dashboard'">
-Start Using IdeaPilot
+<div class="buttons">
+
+<button class="startBtn" onclick="window.location='/signup.html'">
+Get Started
+</button>
+
+<button class="loginBtn" onclick="window.location='/login.html'">
+Login
 </button>
 
 </div>
 
-
+</div>
 
 <div class="container section">
 
@@ -192,8 +221,6 @@ Ask follow-up questions, explore strategies, analyze markets, and improve your p
 
 </div>
 
-
-
 <div class="container section">
 
 <h2>What You Can Use IdeaPilot For</h2>
@@ -224,8 +251,6 @@ Ask follow-up questions, explore strategies, analyze markets, and improve your p
 
 </div>
 
-
-
 <div class="container section">
 
 <h2>Example Idea</h2>
@@ -244,8 +269,6 @@ IdeaPilot helps transform ideas into structured direction plans with actions, ri
 
 </div>
 
-
-
 <div class="footer">
 
 <p>
@@ -257,7 +280,6 @@ Created by <b>Stable King Alf</b>
 </p>
 
 </div>
-
 
 </body>
 </html>
