@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>IdeaPilot Sign Up</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+body{
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+background:#0f172a;
+color:white;
+display:flex;
+align-items:center;
+justify-content:center;
+height:100vh;
+}
+
+.card{
+background:#020617;
+padding:40px;
+border-radius:10px;
+border:1px solid #1e293b;
+width:320px;
+}
+
+h2{
+margin-top:0;
+}
+
+input{
+width:100%;
+padding:12px;
+margin-bottom:12px;
+border-radius:6px;
+border:1px solid #334155;
+background:#0f172a;
+color:white;
+}
+
+button{
+width:100%;
+padding:12px;
+background:#22c55e;
+border:none;
+border-radius:6px;
+color:white;
+cursor:pointer;
+}
+
+p{
+font-size:14px;
+text-align:center;
+}
+
+a{
+color:#22c55e;
+text-decoration:none;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>Create Account</h2>
+
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+
+<button onclick="signup()">Sign Up</button>
+
+<p>Already have an account? <a href="/login.html">Login</a></p>
+
+</div>
+
+<script>
+
+async function signup(){
+
+const email=document.getElementById("email").value
+const password=document.getElementById("password").value
+
+const res=await fetch("/signup",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({email,password})
+})
+
+const data=await res.json()
+
+if(data.status){
+alert("Account created. Please login.")
+window.location="/login.html"
+}else{
+alert(data.error)
+}
+
+}
+
+</script>
+
+</body>
+</html>
