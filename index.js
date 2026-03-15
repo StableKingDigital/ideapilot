@@ -4,6 +4,8 @@ const OpenAI = require("openai")
 const multer = require("multer")
 const path = require("path")
 const Database = require("better-sqlite3")
+const bcrypt = require("bcrypt")
+const session = require("express-session")
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -16,17 +18,41 @@ const upload = multer({ storage: multer.memoryStorage() })
 
 app.use(express.json())
 
+/* SESSION */
+
+app.use(session({
+ secret: "ideapilot-secret",
+ resave: false,
+ saveUninitialized: false
+}))
+
 /* DATABASE */
 
 const db = new Database("ideapilot.db")
 
+/* USERS */
+
+db.prepare(`
+CREATE TABLE IF NOT EXISTS users (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ email TEXT UNIQUE,
+ password TEXT,
+ created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+`).run()
+
+/* CHATS */
+
 db.prepare(`
 CREATE TABLE IF NOT EXISTS chats (
  id TEXT PRIMARY KEY,
+ user_id INTEGER,
  title TEXT,
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )
 `).run()
+
+/* MESSAGES */
 
 db.prepare(`
 CREATE TABLE IF NOT EXISTS messages (
@@ -37,6 +63,17 @@ CREATE TABLE IF NOT EXISTS messages (
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )
 `).run()
+
+/* LOGIN CHECK */
+
+function requireLogin(req,res,next){
+
+ if(!req.session.userId){
+  return res.status(401).json({error:"not logged in"})
+ }
+
+ next()
+}
 
 /* AI TITLE GENERATOR */
 
@@ -63,7 +100,7 @@ async function generateAITitle(text){
 
 }
 
-/* LANDING PAGE */
+/* LANDING */
 
 app.get("/",(req,res)=>{
  res.sendFile(path.join(__dirname,"landing.html"))
@@ -75,15 +112,73 @@ app.get("/dashboard",(req,res)=>{
  res.sendFile(path.join(__dirname,"index.html"))
 })
 
+/* SIGNUP */
+
+app.post("/signup", async (req,res)=>{
+
+ try{
+
+  const {email,password} = req.body
+
+  const hash = await bcrypt.hash(password,10)
+
+  db.prepare(
+   "INSERT INTO users (email,password) VALUES (?,?)"
+  ).run(email,hash)
+
+  res.json({status:"account created"})
+
+ }catch(err){
+
+  res.json({error:"email already exists"})
+
+ }
+
+})
+
+/* LOGIN */
+
+app.post("/login", async (req,res)=>{
+
+ const {email,password} = req.body
+
+ const user = db.prepare(
+  "SELECT * FROM users WHERE email=?"
+ ).get(email)
+
+ if(!user){
+  return res.json({error:"user not found"})
+ }
+
+ const valid = await bcrypt.compare(password,user.password)
+
+ if(!valid){
+  return res.json({error:"invalid password"})
+ }
+
+ req.session.userId = user.id
+
+ res.json({status:"logged in"})
+
+})
+
+/* LOGOUT */
+
+app.get("/logout",(req,res)=>{
+ req.session.destroy(()=>{
+  res.json({status:"logged out"})
+ })
+})
+
 /* CREATE CHAT */
 
-app.post("/create-chat",(req,res)=>{
+app.post("/create-chat", requireLogin, (req,res)=>{
 
  const chatId = Date.now().toString()
 
  db.prepare(
-  "INSERT INTO chats (id,title) VALUES (?,?)"
- ).run(chatId,"New Chat")
+  "INSERT INTO chats (id,user_id,title) VALUES (?,?,?)"
+ ).run(chatId,req.session.userId,"New Chat")
 
  res.json({chatId})
 
@@ -91,7 +186,7 @@ app.post("/create-chat",(req,res)=>{
 
 /* GENERATE PLAN */
 
-app.post("/plan",async(req,res)=>{
+app.post("/plan", requireLogin, async(req,res)=>{
 
  try{
 
@@ -148,8 +243,8 @@ Success Potential should summarize if the idea is worth pursuing.
   const chatId = Date.now().toString()
 
   db.prepare(
-   "INSERT INTO chats (id,title) VALUES (?,?)"
-  ).run(chatId,idea)
+   "INSERT INTO chats (id,user_id,title) VALUES (?,?,?)"
+  ).run(chatId,req.session.userId,idea)
 
   db.prepare(
    "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
@@ -166,9 +261,9 @@ Success Potential should summarize if the idea is worth pursuing.
 
 })
 
-/* FOLLOWUP CHAT (REFINEMENT + COMPARISON + EXECUTION) */
+/* FOLLOWUP CHAT */
 
-app.post("/followup",upload.single("file"),async(req,res)=>{
+app.post("/followup", requireLogin, upload.single("file"), async(req,res)=>{
 
  try{
 
@@ -185,53 +280,18 @@ Use the conversation history to understand the user's business ideas.
 
 Response behavior:
 
-1. If the user asks to improve an idea, provide an Idea Refinement Analysis including:
-Niche Opportunity
-Differentiation Strategy
-Cost Optimization
-Customer Acquisition Strategy
-Early Validation Strategy
-Refined Idea Direction
-
-2. If the user asks to compare ideas, provide an Idea Comparison including:
-Idea A Overview
-Idea B Overview
-Startup Difficulty
-Capital Requirement
-Competition Level
-Market Opportunity
-Risk Comparison
-Final Recommendation
-
-3. If the user asks how to start the business or what steps to take, generate an Execution Roadmap including:
-Step 1 Market Validation
-Step 2 Setup
-Step 3 Launch
-Step 4 First Customers
-Step 5 Growth Strategy
-
-4. If the user asks normal questions, answer naturally like a startup advisor.
-
-Always give practical advice.
-Keep responses clear and readable.
+If user asks to improve idea → Idea Refinement Analysis
+If user asks to compare ideas → Idea Comparison
+If user asks how to start → Execution Roadmap
+Otherwise respond normally like a startup advisor.
 `
 
   if(mode==="research"){
-   systemPrompt = `
-You are IdeaPilot acting as a market researcher.
-
-Analyze market demand, competition, trends, and customer behavior using conversation context.
-`
+   systemPrompt="Act as a market researcher analyzing demand and competition."
   }
 
   if(mode==="build"){
-   systemPrompt = `
-You are IdeaPilot acting as a startup builder.
-
-Guide the user step-by-step in building their business.
-
-Provide practical startup execution advice.
-`
+   systemPrompt="Act as a startup builder guiding execution steps."
   }
 
   let history = messages.map(m=>({
@@ -239,33 +299,10 @@ Provide practical startup execution advice.
    content:m.content
   }))
 
-  let userMessage
-
-  if(req.file){
-
-   const base64 = req.file.buffer.toString("base64")
-
-   userMessage={
-    role:"user",
-    content:[
-     {type:"text",text:question || "Analyze this image."},
-     {
-      type:"image_url",
-      image_url:{url:`data:${req.file.mimetype};base64,${base64}`}
-     }
-    ]
-   }
-
-  }else{
-
-   userMessage={
-    role:"user",
-    content:question
-   }
-
-  }
-
-  history.push(userMessage)
+  history.push({
+   role:"user",
+   content:question
+  })
 
   const completion = await openai.chat.completions.create({
    model:"gpt-4o-mini",
@@ -279,7 +316,7 @@ Provide practical startup execution advice.
 
   db.prepare(
    "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
-  ).run(chatId,"user",question || "[image uploaded]")
+  ).run(chatId,"user",question)
 
   db.prepare(
    "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
@@ -289,7 +326,7 @@ Provide practical startup execution advice.
    "SELECT title FROM chats WHERE id=?"
   ).get(chatId)
 
-  if(chat && chat.title==="New Chat" && question){
+  if(chat && chat.title==="New Chat"){
 
    const title = await generateAITitle(question)
 
@@ -309,13 +346,13 @@ Provide practical startup execution advice.
 
 })
 
-/* GET CHATS */
+/* GET USER CHATS */
 
-app.get("/chats",(req,res)=>{
+app.get("/chats", requireLogin, (req,res)=>{
 
  const chats = db.prepare(
-  "SELECT * FROM chats ORDER BY created_at DESC"
- ).all()
+  "SELECT * FROM chats WHERE user_id=? ORDER BY created_at DESC"
+ ).all(req.session.userId)
 
  const result = chats.map(chat=>{
 
@@ -331,38 +368,38 @@ app.get("/chats",(req,res)=>{
 
 })
 
-/* RENAME CHAT */
+/* RENAME */
 
-app.post("/rename-chat",(req,res)=>{
+app.post("/rename-chat", requireLogin, (req,res)=>{
 
  const {id,title}=req.body
 
  db.prepare(
-  "UPDATE chats SET title=? WHERE id=?"
- ).run(title,id)
+  "UPDATE chats SET title=? WHERE id=? AND user_id=?"
+ ).run(title,id,req.session.userId)
 
  res.json({status:"renamed"})
 
 })
 
-/* DELETE CHAT */
+/* DELETE */
 
-app.post("/delete-chat",(req,res)=>{
+app.post("/delete-chat", requireLogin, (req,res)=>{
 
  const {id}=req.body
 
- db.prepare("DELETE FROM chats WHERE id=?").run(id)
+ db.prepare("DELETE FROM chats WHERE id=? AND user_id=?").run(id,req.session.userId)
  db.prepare("DELETE FROM messages WHERE chat_id=?").run(id)
 
  res.json({status:"deleted"})
 
 })
 
-/* STATIC FILES */
+/* STATIC */
 
 app.use(express.static(path.join(__dirname)))
 
-/* SERVER START */
+/* SERVER */
 
 app.listen(PORT,"0.0.0.0",()=>{
  console.log("IdeaPilot running on port "+PORT)
