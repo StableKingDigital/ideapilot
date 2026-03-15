@@ -3,7 +3,7 @@ const express = require("express")
 const OpenAI = require("openai")
 const multer = require("multer")
 const path = require("path")
-const sqlite3 = require("sqlite3").verbose()
+const Database = require("better-sqlite3")
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -16,37 +16,25 @@ const upload = multer({ storage: multer.memoryStorage() })
 
 app.use(express.json())
 
-/* DATABASE SETUP */
+/* DATABASE */
 
-const db = new sqlite3.Database("./ideapilot.db", (err)=>{
- if(err){
-  console.error("Database error:", err)
- }else{
-  console.log("SQLite connected")
- }
-})
+const db = new Database("ideapilot.db")
 
-db.serialize(()=>{
+db.exec(`
+CREATE TABLE IF NOT EXISTS chats(
+ id TEXT PRIMARY KEY,
+ title TEXT,
+ created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
 
- db.run(`
- CREATE TABLE IF NOT EXISTS chats(
-  id TEXT PRIMARY KEY,
-  title TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
- )
- `)
-
- db.run(`
- CREATE TABLE IF NOT EXISTS messages(
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  chat_id TEXT,
-  role TEXT,
-  content TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
- )
- `)
-
-})
+CREATE TABLE IF NOT EXISTS messages(
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ chat_id TEXT,
+ role TEXT,
+ content TEXT,
+ created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+`)
 
 /* AI TITLE GENERATOR */
 
@@ -94,14 +82,11 @@ app.post("/create-chat",(req,res)=>{
 
  const chatId = Date.now().toString()
 
- db.run(
- "INSERT INTO chats(id,title) VALUES(?,?)",
- [chatId,"New Chat"],
- function(err){
-  if(err) return res.status(500).json({error:"DB error"})
-  res.json({chatId})
- }
- )
+ db.prepare(
+ "INSERT INTO chats(id,title) VALUES(?,?)"
+ ).run(chatId,"New Chat")
+
+ res.json({chatId})
 
 })
 
@@ -156,12 +141,13 @@ Write clean readable paragraphs.
 
  const chatId = Date.now().toString()
 
- db.run("INSERT INTO chats(id,title) VALUES(?,?)",[chatId,idea])
+ db.prepare(
+ "INSERT INTO chats(id,title) VALUES(?,?)"
+ ).run(chatId,idea)
 
- db.run(
- "INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)",
- [chatId,"assistant",reply]
- )
+ db.prepare(
+ "INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)"
+ ).run(chatId,"assistant",reply)
 
  res.json({chatId,reply})
 
@@ -175,7 +161,7 @@ Write clean readable paragraphs.
 })
 
 
-/* FOLLOWUP CHAT */
+/* FOLLOW UP CHAT */
 
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
@@ -183,12 +169,9 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  const {chatId,question,mode}=req.body
 
- db.all(
- "SELECT role,content FROM messages WHERE chat_id=?",
- [chatId],
- async(err,rows)=>{
-
- if(err) return res.json({reply:"DB error"})
+ const rows = db.prepare(
+ "SELECT role,content FROM messages WHERE chat_id=?"
+ ).all(chatId)
 
  let systemPrompt="You are IdeaPilot."
 
@@ -239,39 +222,31 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  const reply = completion.choices[0].message.content
 
- db.run(
- "INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)",
- [chatId,"user",question || "[image uploaded]"]
- )
+ db.prepare(
+ "INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)"
+ ).run(chatId,"user",question || "[image uploaded]")
 
- db.run(
- "INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)",
- [chatId,"assistant",reply]
- )
+ db.prepare(
+ "INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)"
+ ).run(chatId,"assistant",reply)
 
  /* AI TITLE */
 
- db.get(
- "SELECT title FROM chats WHERE id=?",
- [chatId],
- async(err,row)=>{
+ const chat = db.prepare(
+ "SELECT title FROM chats WHERE id=?"
+ ).get(chatId)
 
- if(row && row.title==="New Chat" && question){
+ if(chat && chat.title==="New Chat" && question){
 
  const aiTitle = await generateAITitle(question)
 
- db.run(
- "UPDATE chats SET title=? WHERE id=?",
- [aiTitle,chatId]
- )
+ db.prepare(
+ "UPDATE chats SET title=? WHERE id=?"
+ ).run(aiTitle,chatId)
 
  }
 
- })
-
  res.json({reply})
-
- })
 
  }catch(err){
 
@@ -286,32 +261,19 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
 app.get("/chats",(req,res)=>{
 
- db.all(
- "SELECT * FROM chats ORDER BY created_at DESC",
- [],
- (err,chats)=>{
+ const chats = db.prepare(
+ "SELECT * FROM chats ORDER BY created_at DESC"
+ ).all()
 
- if(err) return res.json([])
+ const result = chats.map(chat=>{
+ const messages = db.prepare(
+ "SELECT role,content FROM messages WHERE chat_id=?"
+ ).all(chat.id)
 
- const promises = chats.map(chat=>{
- return new Promise(resolve=>{
-
- db.all(
- "SELECT role,content FROM messages WHERE chat_id=?",
- [chat.id],
- (err,msgs)=>{
- chat.messages = msgs || []
- resolve(chat)
+ return {...chat,messages}
  })
 
- })
- })
-
- Promise.all(promises).then(result=>{
  res.json(result)
- })
-
- })
 
 })
 
@@ -322,11 +284,11 @@ app.post("/rename-chat",(req,res)=>{
 
  const {id,title}=req.body
 
- db.run(
- "UPDATE chats SET title=? WHERE id=?",
- [title,id],
- ()=>{ res.json({status:"renamed"}) }
- )
+ db.prepare(
+ "UPDATE chats SET title=? WHERE id=?"
+ ).run(title,id)
+
+ res.json({status:"renamed"})
 
 })
 
@@ -337,8 +299,8 @@ app.post("/delete-chat",(req,res)=>{
 
  const {id}=req.body
 
- db.run("DELETE FROM chats WHERE id=?",[id])
- db.run("DELETE FROM messages WHERE chat_id=?",[id])
+ db.prepare("DELETE FROM chats WHERE id=?").run(id)
+ db.prepare("DELETE FROM messages WHERE chat_id=?").run(id)
 
  res.json({status:"deleted"})
 
