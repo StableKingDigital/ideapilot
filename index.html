@@ -85,6 +85,8 @@ cursor:pointer;
 position:relative;
 }
 
+/* MENU */
+
 .menu{
 cursor:pointer;
 padding:4px 8px;
@@ -341,10 +343,23 @@ const messages=document.getElementById("messages")
 const chatList=document.getElementById("chatList")
 const textarea=document.getElementById("question")
 
+function cleanAI(text){
+return text.replace(/\*\*/g,"").replace(/###/g,"").replace(/##/g,"").replace(/#/g,"")
+}
+
 function setMode(mode,btn){
 currentMode=mode
 document.querySelectorAll(".modeBtn").forEach(b=>b.classList.remove("active"))
 btn.classList.add("active")
+}
+
+function addAI(text){
+text=cleanAI(text)
+const div=document.createElement("div")
+div.className="message ai"
+div.innerText=text
+messages.appendChild(div)
+messages.scrollTop=messages.scrollHeight
 }
 
 function addUser(text){
@@ -352,40 +367,44 @@ const div=document.createElement("div")
 div.className="message user"
 div.innerText=text
 messages.appendChild(div)
-messages.scrollTop=messages.scrollHeight
 }
 
-function createAI(){
-const div=document.createElement("div")
-div.className="message ai"
-messages.appendChild(div)
-return div
+/* KEYBOARD HANDLING */
+
+textarea.addEventListener("keydown",function(e){
+
+const isMobile=/Mobi|Android/i.test(navigator.userAgent)
+
+if(isMobile){
+if(e.key==="Enter"){
+e.preventDefault()
+sendMessage()
 }
+}else{
+if(e.key==="Enter" && !e.shiftKey){
+e.preventDefault()
+sendMessage()
+}
+}
+
+})
 
 /* IMAGE PREVIEW */
 
-imageUpload.addEventListener("change",function(){
-
+document.getElementById("imageUpload").addEventListener("change",function(){
 const file=this.files[0]
 if(!file) return
-
 pendingImage=file
-
 const reader=new FileReader()
-
 reader.onload=e=>{
 const div=document.createElement("div")
 div.className="message user"
-
 const img=document.createElement("img")
 img.src=e.target.result
-
 div.appendChild(img)
 messages.appendChild(div)
 }
-
 reader.readAsDataURL(file)
-
 })
 
 /* IDEA FORM */
@@ -415,19 +434,27 @@ messages.appendChild(form)
 
 async function generatePlan(){
 
-addUser("Generating startup plan...")
+const ideaVal=idea.value
+const whyVal=why.value
+const skillsVal=skills.value
+const resourcesVal=resources.value
+const hoursVal=hours.value
+const incomeVal=income.value
+const currencyVal=currency.value
+
+addAI("Generating startup plan...")
 
 const res=await fetch("/plan",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({
-idea:idea.value,
-why:why.value,
-skills:skills.value,
-resources:resources.value,
-hours:hours.value,
-incomeGoal:income.value,
-currency:currency.value
+idea:ideaVal,
+why:whyVal,
+skills:skillsVal,
+resources:resourcesVal,
+hours:hoursVal,
+incomeGoal:incomeVal,
+currency:currencyVal
 })
 })
 
@@ -435,14 +462,13 @@ const data=await res.json()
 
 currentChatId=data.chatId
 
-const ai=createAI()
-ai.innerText=data.reply
+addAI(data.reply)
 
 loadChats()
 
 }
 
-/* STREAMING CHAT */
+/* SEND MESSAGE WITH STREAMING */
 
 async function sendMessage(){
 
@@ -456,13 +482,11 @@ if(!currentChatId){
 
 const res=await fetch("/create-chat",{method:"POST"})
 const data=await res.json()
-
 currentChatId=data.chatId
 
 }
 
 const formData=new FormData()
-
 formData.append("chatId",currentChatId)
 formData.append("question",text)
 formData.append("mode",currentMode)
@@ -478,9 +502,11 @@ const res=await fetch("/followup-stream",{method:"POST",body:formData})
 const reader=res.body.getReader()
 const decoder=new TextDecoder()
 
-const ai=createAI()
-
 let aiText=""
+
+const div=document.createElement("div")
+div.className="message ai"
+messages.appendChild(div)
 
 while(true){
 
@@ -492,7 +518,7 @@ const chunk=decoder.decode(value)
 
 aiText+=chunk
 
-ai.innerText=aiText
+div.innerText=cleanAI(aiText)
 
 messages.scrollTop=messages.scrollHeight
 
@@ -517,30 +543,62 @@ const div=document.createElement("div")
 div.className="chatItem"
 
 const title=document.createElement("span")
-title.innerText=chat.title
+title.innerText=chat.title||"Untitled Chat"
 
-div.appendChild(title)
+const menu=document.createElement("div")
+menu.className="menu"
+menu.innerText="⋯"
 
-div.onclick=()=>{
+const dropdown=document.createElement("div")
+dropdown.className="menuDropdown"
 
-currentChatId=chat.id
-messages.innerHTML=""
+const rename=document.createElement("button")
+rename.innerText="Rename"
 
-chat.messages.forEach(m=>{
+rename.onclick=()=>{
+const newTitle=prompt("New title")
+if(!newTitle) return
 
-if(m.role==="user") addUser(m.content)
-else{
-
-const ai=createAI()
-ai.innerText=m.content
-
+fetch("/rename-chat",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id:chat.id,title:newTitle})
+}).then(loadChats)
 }
 
-})
+const del=document.createElement("button")
+del.innerText="Delete"
 
+del.onclick=()=>{
+fetch("/delete-chat",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id:chat.id})
+}).then(loadChats)
+}
+
+dropdown.appendChild(rename)
+dropdown.appendChild(del)
+
+menu.onclick=(e)=>{
+e.stopPropagation()
+dropdown.style.display =
+dropdown.style.display==="flex" ? "none" : "flex"
+}
+
+div.appendChild(title)
+div.appendChild(menu)
+div.appendChild(dropdown)
+
+div.onclick=()=>{
+currentChatId=chat.id
+messages.innerHTML=""
+chat.messages.forEach(m=>{
+if(m.role==="user") addUser(m.content)
+else addAI(m.content)
+})
 sidebar.classList.remove("open")
 overlay.classList.remove("show")
-
 }
 
 chatList.appendChild(div)
@@ -554,7 +612,13 @@ function startNew(){
 messages.innerHTML=""
 currentChatId=null
 
-showIdeaForm()
+addAI("Start a new idea discussion or generate a structured startup plan.")
+
+const tool=document.createElement("div")
+tool.className="ideaCard"
+tool.innerHTML=`<button onclick="showIdeaForm()">Generate Startup Plan</button>`
+
+messages.appendChild(tool)
 
 }
 
