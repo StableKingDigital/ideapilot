@@ -63,20 +63,17 @@ async function generateAITitle(text){
 
 }
 
-
 /* LANDING PAGE */
 
 app.get("/",(req,res)=>{
  res.sendFile(path.join(__dirname,"landing.html"))
 })
 
-
 /* DASHBOARD */
 
 app.get("/dashboard",(req,res)=>{
  res.sendFile(path.join(__dirname,"index.html"))
 })
-
 
 /* CREATE CHAT */
 
@@ -91,7 +88,6 @@ app.post("/create-chat",(req,res)=>{
  res.json({chatId})
 
 })
-
 
 /* GENERATE PLAN */
 
@@ -162,8 +158,7 @@ Write clean paragraphs.
 
 })
 
-
-/* NORMAL FOLLOWUP CHAT (unchanged) */
+/* FOLLOWUP CHAT */
 
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
@@ -229,13 +224,11 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  console.log(err)
  res.json({reply:"AI error"})
-
  }
 
 })
 
-
-/* STREAMING FOLLOWUP CHAT */
+/* STREAMING FOLLOWUP */
 
 app.post("/followup-stream",async(req,res)=>{
 
@@ -282,7 +275,6 @@ app.post("/followup-stream",async(req,res)=>{
  const token = chunk.choices?.[0]?.delta?.content || ""
 
  fullReply += token
-
  res.write(token)
 
  }
@@ -306,7 +298,6 @@ app.post("/followup-stream",async(req,res)=>{
 
 })
 
-
 /* GET CHATS */
 
 app.get("/chats",(req,res)=>{
@@ -329,7 +320,6 @@ app.get("/chats",(req,res)=>{
 
 })
 
-
 /* RENAME CHAT */
 
 app.post("/rename-chat",(req,res)=>{
@@ -344,7 +334,6 @@ app.post("/rename-chat",(req,res)=>{
 
 })
 
-
 /* DELETE CHAT */
 
 app.post("/delete-chat",(req,res)=>{
@@ -358,12 +347,12 @@ app.post("/delete-chat",(req,res)=>{
 
 })
 
-
 /* STATIC FILES */
 
 app.use(express.static(path.join(__dirname)))
 
+/* SERVER */
 
-app.listen(PORT,()=>{
- console.log("IdeaPilot running on http://localhost:"+PORT)
+app.listen(PORT,"0.0.0.0",()=>{
+ console.log("IdeaPilot running on port "+PORT)
 })
