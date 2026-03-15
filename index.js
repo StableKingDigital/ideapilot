@@ -10,8 +10,6 @@ const session = require("express-session")
 const app = express()
 const PORT = process.env.PORT || 3000
 
-app.set("trust proxy",1)
-
 const openai = new OpenAI({
 apiKey: process.env.OPENAI_API_KEY
 })
@@ -19,43 +17,44 @@ apiKey: process.env.OPENAI_API_KEY
 const upload = multer({ storage: multer.memoryStorage() })
 
 app.use(express.json())
-app.use(express.urlencoded({extended:true}))
+
+/* STATIC FILES (IMPORTANT — placed early) */
+
+app.use(express.static(path.join(__dirname)))
 
 /* SESSION */
 
 app.use(session({
-secret:"ideapilot-secret",
-resave:false,
-saveUninitialized:false,
-cookie:{
-httpOnly:true,
-secure:false
-}
+secret: "ideapilot-secret",
+resave: false,
+saveUninitialized: false
 }))
-
-/* STATIC FILES */
-
-app.use(express.static(__dirname))
 
 /* DATABASE */
 
 const db = new Database("ideapilot.db")
 
-db.prepare(`CREATE TABLE IF NOT EXISTS users(
+/* USERS */
+
+db.prepare(`CREATE TABLE IF NOT EXISTS users (
  id INTEGER PRIMARY KEY AUTOINCREMENT,
  email TEXT UNIQUE,
  password TEXT,
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`).run()
 
-db.prepare(`CREATE TABLE IF NOT EXISTS chats(
+/* CHATS */
+
+db.prepare(`CREATE TABLE IF NOT EXISTS chats (
  id TEXT PRIMARY KEY,
  user_id INTEGER,
  title TEXT,
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`).run()
 
-db.prepare(`CREATE TABLE IF NOT EXISTS messages(
+/* MESSAGES */
+
+db.prepare(`CREATE TABLE IF NOT EXISTS messages (
  id INTEGER PRIMARY KEY AUTOINCREMENT,
  chat_id TEXT,
  role TEXT,
@@ -66,11 +65,9 @@ db.prepare(`CREATE TABLE IF NOT EXISTS messages(
 /* LOGIN CHECK */
 
 function requireLogin(req,res,next){
-
 if(!req.session.userId){
 return res.redirect("/login.html")
 }
-
 next()
 }
 
@@ -83,7 +80,7 @@ try{
 const completion = await openai.chat.completions.create({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:"Create a short chat title (3-6 words)."},
+{role:"system",content:"Create a short chat title (3–6 words)."},
 {role:"user",content:text}
 ],
 max_tokens:20
@@ -91,7 +88,7 @@ max_tokens:20
 
 return completion.choices[0].message.content.trim()
 
-}catch{
+}catch(err){
 
 return text.split(" ").slice(0,6).join(" ")
 
@@ -102,19 +99,37 @@ return text.split(" ").slice(0,6).join(" ")
 /* LANDING PAGE */
 
 app.get("/",(req,res)=>{
+
+if(req.session.userId){
+return res.redirect("/dashboard")
+}
+
 res.sendFile(path.join(__dirname,"landing.html"))
+
 })
 
 /* LOGIN PAGE */
 
 app.get("/login.html",(req,res)=>{
+
+if(req.session.userId){
+return res.redirect("/dashboard")
+}
+
 res.sendFile(path.join(__dirname,"login.html"))
+
 })
 
 /* SIGNUP PAGE */
 
 app.get("/signup.html",(req,res)=>{
+
+if(req.session.userId){
+return res.redirect("/dashboard")
+}
+
 res.sendFile(path.join(__dirname,"signup.html"))
+
 })
 
 /* DASHBOARD */
@@ -131,21 +146,21 @@ res.sendFile(path.join(__dirname,"index.html"))
 
 /* SIGNUP */
 
-app.post("/signup",async(req,res)=>{
+app.post("/signup", async (req,res)=>{
 
 try{
 
-const {email,password}=req.body
+const {email,password} = req.body
 
 const hash = await bcrypt.hash(password,10)
 
 db.prepare(
-"INSERT INTO users(email,password) VALUES (?,?)"
+"INSERT INTO users (email,password) VALUES (?,?)"
 ).run(email,hash)
 
 res.json({status:"account created"})
 
-}catch{
+}catch(err){
 
 res.json({error:"email already exists"})
 
@@ -155,9 +170,9 @@ res.json({error:"email already exists"})
 
 /* LOGIN */
 
-app.post("/login",async(req,res)=>{
+app.post("/login", async (req,res)=>{
 
-const {email,password}=req.body
+const {email,password} = req.body
 
 const user = db.prepare(
 "SELECT * FROM users WHERE email=?"
@@ -192,12 +207,12 @@ res.redirect("/")
 
 /* CREATE CHAT */
 
-app.post("/create-chat",requireLogin,(req,res)=>{
+app.post("/create-chat", requireLogin, (req,res)=>{
 
 const chatId = Date.now().toString()
 
 db.prepare(
-"INSERT INTO chats(id,user_id,title) VALUES (?,?,?)"
+"INSERT INTO chats (id,user_id,title) VALUES (?,?,?)"
 ).run(chatId,req.session.userId,"New Chat")
 
 res.json({chatId})
@@ -206,7 +221,7 @@ res.json({chatId})
 
 /* GENERATE PLAN */
 
-app.post("/plan",requireLogin,async(req,res)=>{
+app.post("/plan", requireLogin, async(req,res)=>{
 
 try{
 
@@ -255,11 +270,11 @@ const reply = completion.choices[0].message.content
 const chatId = Date.now().toString()
 
 db.prepare(
-"INSERT INTO chats(id,user_id,title) VALUES (?,?,?)"
+"INSERT INTO chats (id,user_id,title) VALUES (?,?,?)"
 ).run(chatId,req.session.userId,idea)
 
 db.prepare(
-"INSERT INTO messages(chat_id,role,content) VALUES (?,?,?)"
+"INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
 ).run(chatId,"assistant",reply)
 
 res.json({chatId,reply})
@@ -275,7 +290,7 @@ res.status(500).json({error:"AI error"})
 
 /* FOLLOWUP CHAT */
 
-app.post("/followup",requireLogin,upload.none(),async(req,res)=>{
+app.post("/followup", requireLogin, upload.single("file"), async(req,res)=>{
 
 try{
 
@@ -303,11 +318,11 @@ messages:history
 const reply = completion.choices[0].message.content
 
 db.prepare(
-"INSERT INTO messages(chat_id,role,content) VALUES (?,?,?)"
+"INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
 ).run(chatId,"user",question)
 
 db.prepare(
-"INSERT INTO messages(chat_id,role,content) VALUES (?,?,?)"
+"INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
 ).run(chatId,"assistant",reply)
 
 res.json({reply})
@@ -316,14 +331,13 @@ res.json({reply})
 
 console.log(err)
 res.json({reply:"AI error"})
-
 }
 
 })
 
 /* GET CHATS */
 
-app.get("/chats",requireLogin,(req,res)=>{
+app.get("/chats", requireLogin, (req,res)=>{
 
 const chats = db.prepare(
 "SELECT * FROM chats WHERE user_id=? ORDER BY created_at DESC"
@@ -345,7 +359,7 @@ res.json(result)
 
 /* RENAME CHAT */
 
-app.post("/rename-chat",requireLogin,(req,res)=>{
+app.post("/rename-chat", requireLogin, (req,res)=>{
 
 const {id,title}=req.body
 
@@ -359,17 +373,12 @@ res.json({status:"renamed"})
 
 /* DELETE CHAT */
 
-app.post("/delete-chat",requireLogin,(req,res)=>{
+app.post("/delete-chat", requireLogin, (req,res)=>{
 
 const {id}=req.body
 
-db.prepare(
-"DELETE FROM chats WHERE id=? AND user_id=?"
-).run(id,req.session.userId)
-
-db.prepare(
-"DELETE FROM messages WHERE chat_id=?"
-).run(id)
+db.prepare("DELETE FROM chats WHERE id=? AND user_id=?").run(id,req.session.userId)
+db.prepare("DELETE FROM messages WHERE chat_id=?").run(id)
 
 res.json({status:"deleted"})
 
