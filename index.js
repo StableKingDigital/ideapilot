@@ -1,358 +1,632 @@
-require("dotenv").config()
-const express = require("express")
-const OpenAI = require("openai")
-const multer = require("multer")
-const path = require("path")
-const Database = require("better-sqlite3")
+<!DOCTYPE html>
 
-const app = express()
-const PORT = process.env.PORT || 3000
+<html>
+<head>
+<title>IdeaPilot</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-const openai = new OpenAI({
- apiKey: process.env.OPENAI_API_KEY
+<style>
+
+*{box-sizing:border-box}
+
+html,body{
+margin:0;
+height:100dvh;
+overflow:hidden;
+font-family:Arial, Helvetica, sans-serif;
+background:#0f172a;
+color:white;
+}
+
+input,textarea{
+font-size:16px;
+}
+
+/* SIDEBAR */
+
+#sidebar{
+position:fixed;
+top:0;
+left:0;
+width:260px;
+height:100%;
+background:#020617;
+padding:20px;
+overflow-y:auto;
+transform:translateX(-100%);
+transition:transform .25s;
+z-index:2000;
+}
+
+#sidebar.open{
+transform:translateX(0);
+}
+
+#overlay{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,.4);
+display:none;
+z-index:1500;
+}
+
+#overlay.show{
+display:block;
+}
+
+#brand h2{margin:0}
+#brand p{font-size:12px;color:#94a3b8}
+
+#newChat{
+background:#22c55e;
+border:none;
+padding:12px;
+width:100%;
+border-radius:6px;
+color:white;
+cursor:pointer;
+margin:20px 0;
+}
+
+/* CHAT LIST */
+
+.chatItem{
+background:#1e293b;
+padding:10px;
+border-radius:6px;
+margin-bottom:8px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+cursor:pointer;
+position:relative;
+}
+
+/* MENU */
+
+.menu{
+cursor:pointer;
+padding:4px 8px;
+}
+
+.menuDropdown{
+display:none;
+position:absolute;
+right:10px;
+top:32px;
+background:#020617;
+border:1px solid #334155;
+border-radius:6px;
+flex-direction:column;
+z-index:3000;
+}
+
+.menuDropdown button{
+background:none;
+border:none;
+color:white;
+padding:8px 12px;
+text-align:left;
+cursor:pointer;
+}
+
+.menuDropdown button:hover{
+background:#1e293b;
+}
+
+/* APP */
+
+#app{
+display:flex;
+flex-direction:column;
+height:100%;
+}
+
+/* TOP BAR */
+
+#topBar{
+flex-shrink:0;
+display:flex;
+align-items:center;
+gap:10px;
+padding:12px 16px;
+background:#020617;
+border-bottom:1px solid #1e293b;
+}
+
+#menuBtn{
+font-size:22px;
+cursor:pointer;
+}
+
+.modeBtn{
+background:#1e293b;
+border:none;
+padding:8px 14px;
+color:white;
+border-radius:6px;
+cursor:pointer;
+}
+
+.modeBtn.active{
+background:#22c55e;
+}
+
+/* MESSAGES */
+
+#messages{
+flex:1;
+overflow-y:auto;
+padding:14px;
+display:flex;
+flex-direction:column;
+gap:14px;
+}
+
+.message{
+max-width:100%;
+padding:14px;
+border-radius:10px;
+line-height:1.6;
+white-space:pre-wrap;
+}
+
+.ai{
+background:#1e293b;
+align-self:flex-start;
+}
+
+.user{
+background:#2563eb;
+align-self:flex-end;
+}
+
+img{
+max-width:220px;
+border-radius:8px;
+margin-top:8px;
+}
+
+/* INPUT BAR */
+
+#inputBar{
+flex-shrink:0;
+display:flex;
+gap:8px;
+padding:10px;
+background:#020617;
+border-top:1px solid #1e293b;
+}
+
+#inputContainer{
+flex:1;
+display:flex;
+align-items:center;
+min-width:0;
+background:#0f172a;
+border:1px solid #1e293b;
+border-radius:8px;
+padding:6px;
+}
+
+#toolsBtn{
+font-size:20px;
+cursor:pointer;
+margin-right:8px;
+}
+
+textarea{
+flex:1;
+resize:none;
+background:transparent;
+border:none;
+color:white;
+outline:none;
+min-height:20px;
+}
+
+#send{
+background:#22c55e;
+border:none;
+padding:10px 16px;
+border-radius:6px;
+color:white;
+cursor:pointer;
+}
+
+/* IDEA FORM */
+
+.ideaCard{
+background:#020617;
+padding:20px;
+border-radius:10px;
+border:1px solid #1e293b;
+}
+
+.ideaCard input{
+width:100%;
+margin-bottom:10px;
+padding:10px;
+background:#020617;
+border:1px solid #334155;
+color:white;
+border-radius:6px;
+}
+
+#generateBtn{
+background:#22c55e;
+border:none;
+padding:12px;
+border-radius:6px;
+color:white;
+cursor:pointer;
+width:100%;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="overlay"></div>
+
+<div id="sidebar">
+
+<div id="brand">
+<h2>IdeaPilot</h2>
+<p>Turn ideas into execution paths</p>
+</div>
+
+<button id="newChat" onclick="startNew()">+ New Chat</button>
+
+<h4>Your Chats</h4>
+<div id="chatList"></div>
+
+</div>
+
+<div id="app">
+
+<div id="topBar">
+
+<div id="menuBtn">☰</div>
+
+<button class="modeBtn active" onclick="setMode('idea',this)">Idea</button> <button class="modeBtn" onclick="setMode('research',this)">Research</button> <button class="modeBtn" onclick="setMode('build',this)">Build</button>
+
+</div>
+
+<div id="messages"></div>
+
+<div id="inputBar">
+
+<div id="inputContainer">
+<div id="toolsBtn" onclick="document.getElementById('imageUpload').click()">+</div>
+<textarea id="question" placeholder="Ask follow-up question"></textarea>
+</div>
+
+<button id="send" onclick="sendMessage()">Send</button>
+
+</div>
+
+<input type="file" id="imageUpload" hidden accept="image/*">
+
+</div>
+
+<script>
+
+/* SIDEBAR */
+
+const sidebar=document.getElementById("sidebar")
+const overlay=document.getElementById("overlay")
+const menuBtn=document.getElementById("menuBtn")
+
+menuBtn.onclick=()=>{
+sidebar.classList.add("open")
+overlay.classList.add("show")
+}
+
+overlay.onclick=()=>{
+sidebar.classList.remove("open")
+overlay.classList.remove("show")
+}
+
+/* CHAT ENGINE */
+
+let currentChatId=null
+let currentMode="idea"
+let pendingImage=null
+
+const messages=document.getElementById("messages")
+const chatList=document.getElementById("chatList")
+const textarea=document.getElementById("question")
+
+function cleanAI(text){
+return text.replace(/\*\*/g,"").replace(/###/g,"").replace(/##/g,"").replace(/#/g,"")
+}
+
+function setMode(mode,btn){
+currentMode=mode
+document.querySelectorAll(".modeBtn").forEach(b=>b.classList.remove("active"))
+btn.classList.add("active")
+}
+
+function addAI(text){
+text=cleanAI(text)
+const div=document.createElement("div")
+div.className="message ai"
+div.innerText=text
+messages.appendChild(div)
+messages.scrollTop=messages.scrollHeight
+}
+
+function addUser(text){
+const div=document.createElement("div")
+div.className="message user"
+div.innerText=text
+messages.appendChild(div)
+}
+
+/* KEYBOARD HANDLING */
+
+textarea.addEventListener("keydown",function(e){
+
+const isMobile=/Mobi|Android/i.test(navigator.userAgent)
+
+if(isMobile){
+if(e.key==="Enter"){
+e.preventDefault()
+sendMessage()
+}
+}else{
+if(e.key==="Enter" && !e.shiftKey){
+e.preventDefault()
+sendMessage()
+}
+}
+
 })
 
-const upload = multer({ storage: multer.memoryStorage() })
+/* IMAGE PREVIEW */
 
-app.use(express.json())
+document.getElementById("imageUpload").addEventListener("change",function(){
+const file=this.files[0]
+if(!file) return
+pendingImage=file
+const reader=new FileReader()
+reader.onload=e=>{
+const div=document.createElement("div")
+div.className="message user"
+const img=document.createElement("img")
+img.src=e.target.result
+div.appendChild(img)
+messages.appendChild(div)
+}
+reader.readAsDataURL(file)
+})
 
-/* DATABASE */
+/* IDEA FORM */
 
-const db = new Database("ideapilot.db")
+function showIdeaForm(){
 
-db.prepare(`
-CREATE TABLE IF NOT EXISTS chats (
- id TEXT PRIMARY KEY,
- title TEXT,
- created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-`).run()
+const form=document.createElement("div")
+form.className="ideaCard"
 
-db.prepare(`
-CREATE TABLE IF NOT EXISTS messages (
- id INTEGER PRIMARY KEY AUTOINCREMENT,
- chat_id TEXT,
- role TEXT,
- content TEXT,
- created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-`).run()
+form.innerHTML=`
+<h2>Clarify Your Idea</h2>
 
-/* AI TITLE GENERATOR */
+<input id="idea" placeholder="Your idea">
+<input id="why" placeholder="Why it matters">
+<input id="skills" placeholder="Your skills">
+<input id="resources" placeholder="Resources">
+<input id="hours" placeholder="Hours per week">
+<input id="income" placeholder="Income goal">
+<input id="currency" placeholder="Currency">
 
-async function generateAITitle(text){
+<button id="generateBtn" onclick="generatePlan()">Generate Plan</button>
+`
 
- try{
-
- const completion = await openai.chat.completions.create({
- model:"gpt-4o-mini",
- messages:[
- {role:"system",content:"Create a short chat title (3-6 words)."},
- {role:"user",content:text}
- ],
- max_tokens:20
- })
-
- return completion.choices[0].message.content.trim()
-
- }catch(err){
-
- return text.split(" ").slice(0,6).join(" ")
-
- }
+messages.appendChild(form)
 
 }
 
-/* LANDING PAGE */
+async function generatePlan(){
 
-app.get("/",(req,res)=>{
- res.sendFile(path.join(__dirname,"landing.html"))
+const ideaVal=idea.value
+const whyVal=why.value
+const skillsVal=skills.value
+const resourcesVal=resources.value
+const hoursVal=hours.value
+const incomeVal=income.value
+const currencyVal=currency.value
+
+addAI("Generating startup plan...")
+
+const res=await fetch("/plan",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+idea:ideaVal,
+why:whyVal,
+skills:skillsVal,
+resources:resourcesVal,
+hours:hoursVal,
+incomeGoal:incomeVal,
+currency:currencyVal
+})
 })
 
-/* DASHBOARD */
+const data=await res.json()
 
-app.get("/dashboard",(req,res)=>{
- res.sendFile(path.join(__dirname,"index.html"))
+currentChatId=data.chatId
+
+addAI(data.reply)
+
+loadChats()
+
+}
+
+/* SEND MESSAGE — STREAMING UPGRADE */
+
+async function sendMessage(){
+
+const text=textarea.value.trim()
+if(!text && !pendingImage) return
+
+textarea.value=""
+addUser(text)
+
+if(!currentChatId){
+
+const res=await fetch("/create-chat",{method:"POST"})
+const data=await res.json()
+currentChatId=data.chatId
+
+}
+
+const formData=new FormData()
+formData.append("chatId",currentChatId)
+formData.append("question",text)
+formData.append("mode",currentMode)
+
+if(pendingImage){
+formData.append("file",pendingImage)
+}
+
+pendingImage=null
+
+const res=await fetch("/followup-stream",{method:"POST",body:formData})
+
+const reader=res.body.getReader()
+const decoder=new TextDecoder()
+
+const div=document.createElement("div")
+div.className="message ai"
+messages.appendChild(div)
+
+let aiText=""
+
+while(true){
+
+const {done,value}=await reader.read()
+
+if(done) break
+
+const chunk=decoder.decode(value)
+
+aiText+=chunk
+
+div.innerText=cleanAI(aiText)
+
+messages.scrollTop=messages.scrollHeight
+
+}
+
+loadChats()
+
+}
+
+/* CHAT HISTORY */
+
+async function loadChats(){
+
+const res=await fetch("/chats")
+const chats=await res.json()
+
+chatList.innerHTML=""
+
+chats.reverse().forEach(chat=>{
+
+const div=document.createElement("div")
+div.className="chatItem"
+
+const title=document.createElement("span")
+title.innerText=chat.title||"Untitled Chat"
+
+const menu=document.createElement("div")
+menu.className="menu"
+menu.innerText="⋯"
+
+const dropdown=document.createElement("div")
+dropdown.className="menuDropdown"
+
+const rename=document.createElement("button")
+rename.innerText="Rename"
+
+rename.onclick=()=>{
+const newTitle=prompt("New title")
+if(!newTitle) return
+
+fetch("/rename-chat",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id:chat.id,title:newTitle})
+}).then(loadChats)
+}
+
+const del=document.createElement("button")
+del.innerText="Delete"
+
+del.onclick=()=>{
+fetch("/delete-chat",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({id:chat.id})
+}).then(loadChats)
+}
+
+dropdown.appendChild(rename)
+dropdown.appendChild(del)
+
+menu.onclick=(e)=>{
+e.stopPropagation()
+dropdown.style.display =
+dropdown.style.display==="flex" ? "none" : "flex"
+}
+
+div.appendChild(title)
+div.appendChild(menu)
+div.appendChild(dropdown)
+
+div.onclick=()=>{
+currentChatId=chat.id
+messages.innerHTML=""
+chat.messages.forEach(m=>{
+if(m.role==="user") addUser(m.content)
+else addAI(m.content)
 })
-
-/* CREATE CHAT */
-
-app.post("/create-chat",(req,res)=>{
-
- const chatId = Date.now().toString()
-
- db.prepare(
- "INSERT INTO chats (id,title) VALUES (?,?)"
- ).run(chatId,"New Chat")
-
- res.json({chatId})
-
-})
-
-/* GENERATE PLAN */
-
-app.post("/plan",async(req,res)=>{
-
- try{
-
- const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
-
- const prompt = `
-You are IdeaPilot, an AI system helping people turn ideas into execution paths.
-
-Idea: ${idea}
-Why: ${why}
-Skills: ${skills}
-Resources: ${resources}
-Hours: ${hours}
-Income goal: ${incomeGoal} ${currency}
-
-Write sections:
-
-Idea Clarified
-Who This Helps
-Core Problem
-Market Reality
-Simplest Version To Start
-Monetization Model
-First 3 Actions
-30 Day Validation
-Long Term Expansion
-Feasibility Score
-Risk Level
-Startup Capital
-Execution Difficulty
-
-Avoid markdown symbols.
-Write clean paragraphs.
-`
-
- const completion = await openai.chat.completions.create({
- model:"gpt-4o-mini",
- messages:[
- {role:"system",content:"You are IdeaPilot, a calm startup advisor."},
- {role:"user",content:prompt}
- ]
- })
-
- const reply = completion.choices[0].message.content
-
- const chatId = Date.now().toString()
-
- db.prepare(
- "INSERT INTO chats (id,title) VALUES (?,?)"
- ).run(chatId,idea)
-
- db.prepare(
- "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
- ).run(chatId,"assistant",reply)
-
- res.json({chatId,reply})
-
- }catch(err){
-
- console.log(err)
- res.status(500).json({error:"AI error"})
-
- }
-
-})
-
-/* FOLLOWUP CHAT */
-
-app.post("/followup",upload.single("file"),async(req,res)=>{
-
- try{
-
- const {chatId,question,mode}=req.body
-
- const messages = db.prepare(
- "SELECT role,content FROM messages WHERE chat_id=?"
- ).all(chatId)
-
- let systemPrompt="You are IdeaPilot."
-
- if(mode==="idea") systemPrompt="Help refine ideas and opportunities."
- if(mode==="research") systemPrompt="Act as a market researcher."
- if(mode==="build") systemPrompt="Act as a startup builder focusing on execution."
-
- let history = messages.map(m=>({
- role:m.role,
- content:m.content
- }))
-
- history.push({
- role:"user",
- content:question
- })
-
- const completion = await openai.chat.completions.create({
- model:"gpt-4o-mini",
- messages:[
- {role:"system",content:systemPrompt},
- ...history
- ]
- })
-
- const reply = completion.choices[0].message.content
-
- db.prepare(
- "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
- ).run(chatId,"user",question)
-
- db.prepare(
- "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
- ).run(chatId,"assistant",reply)
-
- const chat = db.prepare(
- "SELECT title FROM chats WHERE id=?"
- ).get(chatId)
-
- if(chat && chat.title==="New Chat" && question){
-
- const title = await generateAITitle(question)
-
- db.prepare(
- "UPDATE chats SET title=? WHERE id=?"
- ).run(title,chatId)
-
- }
-
- res.json({reply})
-
- }catch(err){
-
- console.log(err)
- res.json({reply:"AI error"})
- }
-
-})
-
-/* STREAMING FOLLOWUP */
-
-app.post("/followup-stream",async(req,res)=>{
-
- try{
-
- const {chatId,question,mode}=req.body
-
- const messages = db.prepare(
- "SELECT role,content FROM messages WHERE chat_id=?"
- ).all(chatId)
-
- let systemPrompt="You are IdeaPilot."
-
- if(mode==="idea") systemPrompt="Help refine ideas and opportunities."
- if(mode==="research") systemPrompt="Act as a market researcher."
- if(mode==="build") systemPrompt="Act as a startup builder focusing on execution."
-
- let history = messages.map(m=>({
- role:m.role,
- content:m.content
- }))
-
- history.push({
- role:"user",
- content:question
- })
-
- res.setHeader("Content-Type","text/plain")
- res.setHeader("Transfer-Encoding","chunked")
-
- const stream = await openai.chat.completions.create({
- model:"gpt-4o-mini",
- stream:true,
- messages:[
- {role:"system",content:systemPrompt},
- ...history
- ]
- })
-
- let fullReply=""
-
- for await (const chunk of stream){
-
- const token = chunk.choices?.[0]?.delta?.content || ""
-
- fullReply += token
- res.write(token)
-
- }
-
- res.end()
-
- db.prepare(
- "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
- ).run(chatId,"user",question)
-
- db.prepare(
- "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
- ).run(chatId,"assistant",fullReply)
-
- }catch(err){
-
- console.log(err)
- res.end("AI error")
-
- }
+sidebar.classList.remove("open")
+overlay.classList.remove("show")
+}
+
+chatList.appendChild(div)
 
 })
 
-/* GET CHATS */
+}
 
-app.get("/chats",(req,res)=>{
+function startNew(){
 
- const chats = db.prepare(
- "SELECT * FROM chats ORDER BY created_at DESC"
- ).all()
+messages.innerHTML=""
+currentChatId=null
 
- const result = chats.map(chat=>{
+addAI("Start a new idea discussion or generate a structured startup plan.")
 
- const msgs = db.prepare(
- "SELECT role,content FROM messages WHERE chat_id=?"
- ).all(chat.id)
+const tool=document.createElement("div")
+tool.className="ideaCard"
+tool.innerHTML=`<button onclick="showIdeaForm()">Generate Startup Plan</button>`
 
- return {...chat,messages:msgs}
+messages.appendChild(tool)
 
- })
+}
 
- res.json(result)
+showIdeaForm()
+loadChats()
 
-})
+</script>
 
-/* RENAME CHAT */
+</body>
+</html>
 
-app.post("/rename-chat",(req,res)=>{
-
- const {id,title}=req.body
-
- db.prepare(
- "UPDATE chats SET title=? WHERE id=?"
- ).run(title,id)
-
- res.json({status:"renamed"})
-
-})
-
-/* DELETE CHAT */
-
-app.post("/delete-chat",(req,res)=>{
-
- const {id}=req.body
-
- db.prepare("DELETE FROM chats WHERE id=?").run(id)
- db.prepare("DELETE FROM messages WHERE chat_id=?").run(id)
-
- res.json({status:"deleted"})
-
-})
-
-/* STATIC FILES */
-
-app.use(express.static(path.join(__dirname)))
-
-/* SERVER */
-
-app.listen(PORT,"0.0.0.0",()=>{
- console.log("IdeaPilot running on port "+PORT)
-})
