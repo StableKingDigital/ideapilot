@@ -369,26 +369,6 @@ div.innerText=text
 messages.appendChild(div)
 }
 
-/* KEYBOARD HANDLING */
-
-textarea.addEventListener("keydown",function(e){
-
-const isMobile=/Mobi|Android/i.test(navigator.userAgent)
-
-if(isMobile){
-if(e.key==="Enter"){
-e.preventDefault()
-sendMessage()
-}
-}else{
-if(e.key==="Enter" && !e.shiftKey){
-e.preventDefault()
-sendMessage()
-}
-}
-
-})
-
 /* IMAGE PREVIEW */
 
 document.getElementById("imageUpload").addEventListener("change",function(){
@@ -407,68 +387,7 @@ messages.appendChild(div)
 reader.readAsDataURL(file)
 })
 
-/* IDEA FORM */
-
-function showIdeaForm(){
-
-const form=document.createElement("div")
-form.className="ideaCard"
-
-form.innerHTML=`
-<h2>Clarify Your Idea</h2>
-
-<input id="idea" placeholder="Your idea">
-<input id="why" placeholder="Why it matters">
-<input id="skills" placeholder="Your skills">
-<input id="resources" placeholder="Resources">
-<input id="hours" placeholder="Hours per week">
-<input id="income" placeholder="Income goal">
-<input id="currency" placeholder="Currency">
-
-<button id="generateBtn" onclick="generatePlan()">Generate Plan</button>
-`
-
-messages.appendChild(form)
-
-}
-
-async function generatePlan(){
-
-const ideaVal=idea.value
-const whyVal=why.value
-const skillsVal=skills.value
-const resourcesVal=resources.value
-const hoursVal=hours.value
-const incomeVal=income.value
-const currencyVal=currency.value
-
-addAI("Generating startup plan...")
-
-const res=await fetch("/plan",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-idea:ideaVal,
-why:whyVal,
-skills:skillsVal,
-resources:resourcesVal,
-hours:hoursVal,
-incomeGoal:incomeVal,
-currency:currencyVal
-})
-})
-
-const data=await res.json()
-
-currentChatId=data.chatId
-
-addAI(data.reply)
-
-loadChats()
-
-}
-
-/* SEND MESSAGE — FIXED */
+/* SEND MESSAGE */
 
 async function sendMessage(){
 
@@ -497,8 +416,7 @@ formData.append("file",pendingImage)
 
 pendingImage=null
 
-const res=await fetch("/followup-stream",{method:"POST",body:formData})
-
+const res=await fetch("/followup",{method:"POST",body:formData})
 const data=await res.json()
 
 addAI(data.reply)
