@@ -89,7 +89,7 @@ app.post("/create-chat",(req,res)=>{
 
 })
 
-/* GENERATE PLAN (STAGE 3 ANALYSIS ENGINE) */
+/* GENERATE PLAN */
 
 app.post("/plan",async(req,res)=>{
 
@@ -132,13 +132,13 @@ Rules:
 • Do NOT use markdown symbols
 • Feasibility Score must include a number out of 10
 • Startup Capital should provide a realistic range
-• Success Potential should summarize the overall viability of the idea
+• Success Potential should summarize the overall viability
 `
 
   const completion = await openai.chat.completions.create({
    model:"gpt-4o-mini",
    messages:[
-    {role:"system",content:"You are IdeaPilot, an experienced startup advisor helping people evaluate business ideas."},
+    {role:"system",content:"You are IdeaPilot, an experienced startup advisor."},
     {role:"user",content:prompt}
    ]
   })
@@ -166,7 +166,7 @@ Rules:
 
 })
 
-/* FOLLOWUP CHAT (SMART REFINEMENT MODE) */
+/* FOLLOWUP CHAT (REFINEMENT + COMPARISON MODE) */
 
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
@@ -181,37 +181,40 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
   let systemPrompt = `
 You are IdeaPilot, an AI startup advisor.
 
-Use the previous conversation to understand the user's business idea.
+Use the conversation history to understand the user's business ideas.
 
-Response behavior rules:
+Response behavior:
 
-• If the user asks about improving or strengthening the idea, provide an Idea Refinement Analysis with:
-  - Niche Opportunity
-  - Differentiation Strategy
-  - Cost Optimization
-  - Customer Acquisition Strategy
-  - Early Validation Strategy
-  - Refined Idea Direction
+1. If the user asks to improve an idea, provide an Idea Refinement Analysis including:
+   - Niche Opportunity
+   - Differentiation Strategy
+   - Cost Optimization
+   - Customer Acquisition Strategy
+   - Early Validation Strategy
+   - Refined Idea Direction
 
-• If the user asks normal questions, answer naturally like a business advisor.
+2. If the user asks to compare ideas (for example: compare idea A vs idea B), provide an Idea Comparison including:
+   - Idea A Overview
+   - Idea B Overview
+   - Startup Difficulty
+   - Capital Requirement
+   - Competition Level
+   - Market Opportunity
+   - Risk Comparison
+   - Final Recommendation
 
-• If the user asks about execution, guide them step-by-step.
+3. If the user asks normal questions, answer naturally like a startup advisor.
 
-• Keep answers clear and practical.
+4. If the user asks about execution, guide them step-by-step.
+
+Keep responses practical, clear, and structured when useful.
 `
 
   if(mode==="research"){
    systemPrompt = `
 You are IdeaPilot acting as a market researcher.
 
-Use previous chat context to analyze:
-
-• market demand
-• competition
-• trends
-• customer behavior
-
-Provide realistic market insight.
+Analyze market demand, competition, trends, and customer behavior using the conversation context.
 `
   }
 
@@ -219,9 +222,7 @@ Provide realistic market insight.
    systemPrompt = `
 You are IdeaPilot acting as a startup builder.
 
-Use previous messages to guide the user step-by-step in executing the business idea.
-
-Focus on practical steps and execution strategy.
+Help the user execute their idea step-by-step using practical business guidance.
 `
   }
 
@@ -296,7 +297,6 @@ Focus on practical steps and execution strategy.
 
   console.log(err)
   res.json({reply:"AI error"})
-
  }
 
 })
