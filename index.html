@@ -468,7 +468,7 @@ loadChats()
 
 }
 
-/* SEND MESSAGE WITH STREAMING */
+/* SEND MESSAGE — FIXED */
 
 async function sendMessage(){
 
@@ -499,30 +499,9 @@ pendingImage=null
 
 const res=await fetch("/followup-stream",{method:"POST",body:formData})
 
-const reader=res.body.getReader()
-const decoder=new TextDecoder()
+const data=await res.json()
 
-let aiText=""
-
-const div=document.createElement("div")
-div.className="message ai"
-messages.appendChild(div)
-
-while(true){
-
-const {done,value}=await reader.read()
-
-if(done) break
-
-const chunk=decoder.decode(value)
-
-aiText+=chunk
-
-div.innerText=cleanAI(aiText)
-
-messages.scrollTop=messages.scrollHeight
-
-}
+addAI(data.reply)
 
 loadChats()
 
