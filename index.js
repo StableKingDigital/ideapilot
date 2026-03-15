@@ -300,7 +300,9 @@ res.json({status:"deleted"})
 
 app.use(express.static(path.join(__dirname)))
 
-app.listen(PORT,()=>{
-console.log("IdeaPilot running on [http://localhost:"+PORT](http://localhost:%22+PORT))
+/* SERVER */
+
+app.listen(PORT, "0.0.0.0", () => {
+console.log("IdeaPilot running on http://localhost:" + PORT)
 })
 
