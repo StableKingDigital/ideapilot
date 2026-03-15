@@ -3,6 +3,7 @@ const express = require("express")
 const OpenAI = require("openai")
 const multer = require("multer")
 const path = require("path")
+const sqlite3 = require("sqlite3").verbose()
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -15,43 +16,95 @@ const upload = multer({ storage: multer.memoryStorage() })
 
 app.use(express.json())
 
-let chats = {}
+/* DATABASE */
 
-function generateTitle(text){
- const words = text.split(" ")
- return words.slice(0,6).join(" ")
+const db = new sqlite3.Database("./ideapilot.db")
+
+db.serialize(()=>{
+
+ db.run(`
+ CREATE TABLE IF NOT EXISTS chats(
+  id TEXT PRIMARY KEY,
+  title TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+ )
+ `)
+
+ db.run(`
+ CREATE TABLE IF NOT EXISTS messages(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat_id TEXT,
+  role TEXT,
+  content TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+ )
+ `)
+
+})
+
+/* AI TITLE GENERATOR */
+
+async function generateAITitle(text){
+
+ try{
+
+ const completion = await openai.chat.completions.create({
+ model:"gpt-4o-mini",
+ messages:[
+ {
+ role:"system",
+ content:"Create a short clean chat title (3-6 words). No punctuation."
+ },
+ {
+ role:"user",
+ content:text
+ }
+ ],
+ max_tokens:20
+ })
+
+ return completion.choices[0].message.content.trim()
+
+ }catch(err){
+
+ return text.split(" ").slice(0,6).join(" ")
+
+ }
+
 }
 
 
 /* LANDING PAGE */
+
 app.get("/",(req,res)=>{
  res.sendFile(path.join(__dirname,"landing.html"))
 })
 
 
 /* DASHBOARD */
+
 app.get("/dashboard",(req,res)=>{
  res.sendFile(path.join(__dirname,"index.html"))
 })
 
 
 /* CREATE CHAT */
+
 app.post("/create-chat",(req,res)=>{
 
  const chatId = Date.now().toString()
 
- chats[chatId] = {
-  id: chatId,
-  title: "New Chat",
-  messages:[]
- }
-
- res.json({chatId})
+ db.run(
+ `INSERT INTO chats(id,title) VALUES(?,?)`,
+ [chatId,"New Chat"],
+ ()=>{ res.json({chatId}) }
+ )
 
 })
 
 
 /* GENERATE PLAN */
+
 app.post("/plan",async(req,res)=>{
 
  try{
@@ -100,13 +153,15 @@ Write clean readable paragraphs.
 
  const chatId = Date.now().toString()
 
- chats[chatId] = {
-  id:chatId,
-  title:generateTitle(idea),
-  messages:[
-   {role:"assistant",content:reply}
-  ]
- }
+ db.run(
+ `INSERT INTO chats(id,title) VALUES(?,?)`,
+ [chatId,idea]
+ )
+
+ db.run(
+ `INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)`,
+ [chatId,"assistant",reply]
+ )
 
  res.json({chatId,reply})
 
@@ -121,34 +176,29 @@ Write clean readable paragraphs.
 
 
 /* FOLLOW UP CHAT */
+
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
  try{
 
  const {chatId,question,mode}=req.body
- const chat = chats[chatId]
 
- if(!chat){
-  return res.json({reply:"Chat not found"})
- }
+ db.all(
+ `SELECT role,content FROM messages WHERE chat_id=?`,
+ [chatId],
+ async(err,rows)=>{
+
+ if(err) return res.json({reply:"DB error"})
 
  let systemPrompt="You are IdeaPilot."
 
- if(mode==="idea"){
-  systemPrompt="Help refine ideas and opportunities."
- }
+ if(mode==="idea") systemPrompt="Help refine ideas and opportunities."
+ if(mode==="research") systemPrompt="Act as a market researcher."
+ if(mode==="build") systemPrompt="Act as a startup builder focusing on execution."
 
- if(mode==="research"){
-  systemPrompt="Act as a market researcher."
- }
-
- if(mode==="build"){
-  systemPrompt="Act as a startup builder focusing on execution."
- }
-
- let history = chat.messages.map(m=>({
-  role:m.role==="assistant"?"assistant":"user",
-  content:m.content
+ let history = rows.map(m=>({
+ role:m.role,
+ content:m.content
  }))
 
  let userMessage
@@ -158,26 +208,23 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  const base64Image = req.file.buffer.toString("base64")
 
  userMessage={
-  role:"user",
-  content:[
-   {
-    type:"text",
-    text: question || "Analyze this image."
-   },
-   {
-    type:"image_url",
-    image_url:{
-     url:`data:${req.file.mimetype};base64,${base64Image}`
-    }
-   }
-  ]
+ role:"user",
+ content:[
+ {type:"text",text:question || "Analyze this image."},
+ {
+ type:"image_url",
+ image_url:{
+ url:`data:${req.file.mimetype};base64,${base64Image}`
+ }
+ }
+ ]
  }
 
  }else{
 
  userMessage={
-  role:"user",
-  content: question
+ role:"user",
+ content:question
  }
 
  }
@@ -194,23 +241,43 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  const reply = completion.choices[0].message.content
 
- /* AUTO TITLE FROM FIRST MESSAGE */
+ /* SAVE USER MESSAGE */
 
- if(chat.title === "New Chat" && question){
-  chat.title = generateTitle(question)
+ db.run(
+ `INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)`,
+ [chatId,"user",question || "[image uploaded]"]
+ )
+
+ /* SAVE AI MESSAGE */
+
+ db.run(
+ `INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)`,
+ [chatId,"assistant",reply]
+ )
+
+ /* AI TITLE GENERATION */
+
+ db.get(
+ `SELECT title FROM chats WHERE id=?`,
+ [chatId],
+ async(err,row)=>{
+
+ if(row && row.title==="New Chat" && question){
+
+ const aiTitle = await generateAITitle(question)
+
+ db.run(
+ `UPDATE chats SET title=? WHERE id=?`,
+ [aiTitle,chatId]
+ )
+
  }
 
- chat.messages.push({
-  role:"user",
-  content: question || "[image uploaded]"
- })
-
- chat.messages.push({
-  role:"assistant",
-  content: reply
  })
 
  res.json({reply})
+
+ })
 
  }catch(err){
 
@@ -222,35 +289,62 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
 
 /* GET CHATS */
+
 app.get("/chats",(req,res)=>{
- res.json(Object.values(chats))
+
+ db.all(
+ `SELECT * FROM chats ORDER BY created_at DESC`,
+ [],
+ (err,chats)=>{
+
+ if(err) return res.json([])
+
+ const promises = chats.map(chat=>{
+ return new Promise(resolve=>{
+
+ db.all(
+ `SELECT role,content FROM messages WHERE chat_id=?`,
+ [chat.id],
+ (err,msgs)=>{
+ chat.messages = msgs || []
+ resolve(chat)
+ })
+
+ })
+ })
+
+ Promise.all(promises).then(result=>{
+ res.json(result)
+ })
+
+ })
+
 })
 
 
 /* RENAME CHAT */
+
 app.post("/rename-chat",(req,res)=>{
 
  const {id,title}=req.body
 
- if(!chats[id]){
-  return res.json({status:"not found"})
- }
-
- chats[id].title = title
-
- res.json({status:"renamed"})
+ db.run(
+ `UPDATE chats SET title=? WHERE id=?`,
+ [title,id],
+ ()=>{ res.json({status:"renamed"}) }
+ )
 
 })
 
 
 /* DELETE CHAT */
+
 app.post("/delete-chat",(req,res)=>{
 
  const {id}=req.body
 
- if(chats[id]){
-  delete chats[id]
- }
+ db.run(`DELETE FROM chats WHERE id=?`,[id])
+ db.run(`DELETE FROM messages WHERE chat_id=?`,[id])
 
  res.json({status:"deleted"})
 
