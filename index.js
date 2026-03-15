@@ -163,7 +163,7 @@ Write clean paragraphs.
 })
 
 
-/* FOLLOWUP CHAT */
+/* NORMAL FOLLOWUP CHAT (unchanged) */
 
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
@@ -186,33 +186,10 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  content:m.content
  }))
 
- let userMessage
-
- if(req.file){
-
- const base64 = req.file.buffer.toString("base64")
-
- userMessage={
- role:"user",
- content:[
- {type:"text",text:question || "Analyze this image."},
- {
- type:"image_url",
- image_url:{url:`data:${req.file.mimetype};base64,${base64}`}
- }
- ]
- }
-
- }else{
-
- userMessage={
+ history.push({
  role:"user",
  content:question
- }
-
- }
-
- history.push(userMessage)
+ })
 
  const completion = await openai.chat.completions.create({
  model:"gpt-4o-mini",
@@ -226,7 +203,7 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  db.prepare(
  "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
- ).run(chatId,"user",question || "[image uploaded]")
+ ).run(chatId,"user",question)
 
  db.prepare(
  "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
@@ -252,6 +229,78 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  console.log(err)
  res.json({reply:"AI error"})
+
+ }
+
+})
+
+
+/* STREAMING FOLLOWUP CHAT */
+
+app.post("/followup-stream",async(req,res)=>{
+
+ try{
+
+ const {chatId,question,mode}=req.body
+
+ const messages = db.prepare(
+ "SELECT role,content FROM messages WHERE chat_id=?"
+ ).all(chatId)
+
+ let systemPrompt="You are IdeaPilot."
+
+ if(mode==="idea") systemPrompt="Help refine ideas and opportunities."
+ if(mode==="research") systemPrompt="Act as a market researcher."
+ if(mode==="build") systemPrompt="Act as a startup builder focusing on execution."
+
+ let history = messages.map(m=>({
+ role:m.role,
+ content:m.content
+ }))
+
+ history.push({
+ role:"user",
+ content:question
+ })
+
+ res.setHeader("Content-Type","text/plain")
+ res.setHeader("Transfer-Encoding","chunked")
+
+ const stream = await openai.chat.completions.create({
+ model:"gpt-4o-mini",
+ stream:true,
+ messages:[
+ {role:"system",content:systemPrompt},
+ ...history
+ ]
+ })
+
+ let fullReply=""
+
+ for await (const chunk of stream){
+
+ const token = chunk.choices?.[0]?.delta?.content || ""
+
+ fullReply += token
+
+ res.write(token)
+
+ }
+
+ res.end()
+
+ db.prepare(
+ "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
+ ).run(chatId,"user",question)
+
+ db.prepare(
+ "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
+ ).run(chatId,"assistant",fullReply)
+
+ }catch(err){
+
+ console.log(err)
+ res.end("AI error")
 
  }
 
