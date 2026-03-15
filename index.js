@@ -128,11 +128,11 @@ Success Potential
 
 Rules:
 
-• Write natural readable paragraphs
-• Do NOT use markdown symbols
-• Feasibility Score must include a number out of 10
-• Startup Capital should provide a realistic range
-• Success Potential should summarize the overall viability
+Write natural readable paragraphs.
+Avoid markdown symbols.
+Feasibility Score must include a number out of 10.
+Startup Capital should provide a realistic range.
+Success Potential should summarize if the idea is worth pursuing.
 `
 
   const completion = await openai.chat.completions.create({
@@ -166,7 +166,7 @@ Rules:
 
 })
 
-/* FOLLOWUP CHAT (REFINEMENT + COMPARISON MODE) */
+/* FOLLOWUP CHAT (REFINEMENT + COMPARISON + EXECUTION) */
 
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
@@ -186,35 +186,41 @@ Use the conversation history to understand the user's business ideas.
 Response behavior:
 
 1. If the user asks to improve an idea, provide an Idea Refinement Analysis including:
-   - Niche Opportunity
-   - Differentiation Strategy
-   - Cost Optimization
-   - Customer Acquisition Strategy
-   - Early Validation Strategy
-   - Refined Idea Direction
+Niche Opportunity
+Differentiation Strategy
+Cost Optimization
+Customer Acquisition Strategy
+Early Validation Strategy
+Refined Idea Direction
 
-2. If the user asks to compare ideas (for example: compare idea A vs idea B), provide an Idea Comparison including:
-   - Idea A Overview
-   - Idea B Overview
-   - Startup Difficulty
-   - Capital Requirement
-   - Competition Level
-   - Market Opportunity
-   - Risk Comparison
-   - Final Recommendation
+2. If the user asks to compare ideas, provide an Idea Comparison including:
+Idea A Overview
+Idea B Overview
+Startup Difficulty
+Capital Requirement
+Competition Level
+Market Opportunity
+Risk Comparison
+Final Recommendation
 
-3. If the user asks normal questions, answer naturally like a startup advisor.
+3. If the user asks how to start the business or what steps to take, generate an Execution Roadmap including:
+Step 1 Market Validation
+Step 2 Setup
+Step 3 Launch
+Step 4 First Customers
+Step 5 Growth Strategy
 
-4. If the user asks about execution, guide them step-by-step.
+4. If the user asks normal questions, answer naturally like a startup advisor.
 
-Keep responses practical, clear, and structured when useful.
+Always give practical advice.
+Keep responses clear and readable.
 `
 
   if(mode==="research"){
    systemPrompt = `
 You are IdeaPilot acting as a market researcher.
 
-Analyze market demand, competition, trends, and customer behavior using the conversation context.
+Analyze market demand, competition, trends, and customer behavior using conversation context.
 `
   }
 
@@ -222,7 +228,9 @@ Analyze market demand, competition, trends, and customer behavior using the conv
    systemPrompt = `
 You are IdeaPilot acting as a startup builder.
 
-Help the user execute their idea step-by-step using practical business guidance.
+Guide the user step-by-step in building their business.
+
+Provide practical startup execution advice.
 `
   }
 
