@@ -20,21 +20,23 @@ app.use(express.json())
 
 const db = new Database("ideapilot.db")
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS chats(
+db.prepare(`
+CREATE TABLE IF NOT EXISTS chats (
  id TEXT PRIMARY KEY,
  title TEXT,
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )
+`).run()
 
-CREATE TABLE IF NOT EXISTS messages(
+db.prepare(`
+CREATE TABLE IF NOT EXISTS messages (
  id INTEGER PRIMARY KEY AUTOINCREMENT,
  chat_id TEXT,
  role TEXT,
  content TEXT,
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )
-`)
+`).run()
 
 /* AI TITLE GENERATOR */
 
@@ -45,7 +47,7 @@ async function generateAITitle(text){
  const completion = await openai.chat.completions.create({
  model:"gpt-4o-mini",
  messages:[
- {role:"system",content:"Create a short clean chat title (3-6 words). No punctuation."},
+ {role:"system",content:"Create a short chat title (3-6 words)."},
  {role:"user",content:text}
  ],
  max_tokens:20
@@ -83,7 +85,7 @@ app.post("/create-chat",(req,res)=>{
  const chatId = Date.now().toString()
 
  db.prepare(
- "INSERT INTO chats(id,title) VALUES(?,?)"
+ "INSERT INTO chats (id,title) VALUES (?,?)"
  ).run(chatId,"New Chat")
 
  res.json({chatId})
@@ -100,7 +102,7 @@ app.post("/plan",async(req,res)=>{
  const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
 
  const prompt = `
-You are IdeaPilot, an AI system helping people turn ideas into practical execution paths.
+You are IdeaPilot, an AI system helping people turn ideas into execution paths.
 
 Idea: ${idea}
 Why: ${why}
@@ -113,20 +115,20 @@ Write sections:
 
 Idea Clarified
 Who This Helps
-Core Problem Being Solved
-Market Reality Check
+Core Problem
+Market Reality
 Simplest Version To Start
 Monetization Model
-First 3 Real Actions
-30 Day Validation Plan
+First 3 Actions
+30 Day Validation
 Long Term Expansion
 Feasibility Score
 Risk Level
-Startup Capital Estimate
+Startup Capital
 Execution Difficulty
 
-Avoid markdown symbols like ### or **.
-Write clean readable paragraphs.
+Avoid markdown symbols.
+Write clean paragraphs.
 `
 
  const completion = await openai.chat.completions.create({
@@ -142,11 +144,11 @@ Write clean readable paragraphs.
  const chatId = Date.now().toString()
 
  db.prepare(
- "INSERT INTO chats(id,title) VALUES(?,?)"
+ "INSERT INTO chats (id,title) VALUES (?,?)"
  ).run(chatId,idea)
 
  db.prepare(
- "INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)"
+ "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
  ).run(chatId,"assistant",reply)
 
  res.json({chatId,reply})
@@ -161,7 +163,7 @@ Write clean readable paragraphs.
 })
 
 
-/* FOLLOW UP CHAT */
+/* FOLLOWUP CHAT */
 
 app.post("/followup",upload.single("file"),async(req,res)=>{
 
@@ -169,7 +171,7 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  const {chatId,question,mode}=req.body
 
- const rows = db.prepare(
+ const messages = db.prepare(
  "SELECT role,content FROM messages WHERE chat_id=?"
  ).all(chatId)
 
@@ -179,7 +181,7 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  if(mode==="research") systemPrompt="Act as a market researcher."
  if(mode==="build") systemPrompt="Act as a startup builder focusing on execution."
 
- let history = rows.map(m=>({
+ let history = messages.map(m=>({
  role:m.role,
  content:m.content
  }))
@@ -188,7 +190,7 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  if(req.file){
 
- const base64Image = req.file.buffer.toString("base64")
+ const base64 = req.file.buffer.toString("base64")
 
  userMessage={
  role:"user",
@@ -196,7 +198,7 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  {type:"text",text:question || "Analyze this image."},
  {
  type:"image_url",
- image_url:{url:`data:${req.file.mimetype};base64,${base64Image}`}
+ image_url:{url:`data:${req.file.mimetype};base64,${base64}`}
  }
  ]
  }
@@ -223,14 +225,12 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
  const reply = completion.choices[0].message.content
 
  db.prepare(
- "INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)"
+ "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
  ).run(chatId,"user",question || "[image uploaded]")
 
  db.prepare(
- "INSERT INTO messages(chat_id,role,content) VALUES(?,?,?)"
+ "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
  ).run(chatId,"assistant",reply)
-
- /* AI TITLE */
 
  const chat = db.prepare(
  "SELECT title FROM chats WHERE id=?"
@@ -238,11 +238,11 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  if(chat && chat.title==="New Chat" && question){
 
- const aiTitle = await generateAITitle(question)
+ const title = await generateAITitle(question)
 
  db.prepare(
  "UPDATE chats SET title=? WHERE id=?"
- ).run(aiTitle,chatId)
+ ).run(title,chatId)
 
  }
 
@@ -252,6 +252,7 @@ app.post("/followup",upload.single("file"),async(req,res)=>{
 
  console.log(err)
  res.json({reply:"AI error"})
+
  }
 
 })
@@ -266,11 +267,13 @@ app.get("/chats",(req,res)=>{
  ).all()
 
  const result = chats.map(chat=>{
- const messages = db.prepare(
+
+ const msgs = db.prepare(
  "SELECT role,content FROM messages WHERE chat_id=?"
  ).all(chat.id)
 
- return {...chat,messages}
+ return {...chat,messages:msgs}
+
  })
 
  res.json(result)
