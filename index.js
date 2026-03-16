@@ -6,7 +6,6 @@ const path = require("path")
 const Database = require("better-sqlite3")
 const bcrypt = require("bcrypt")
 const session = require("express-session")
-const SQLiteStore = require("connect-sqlite3")(session)
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -19,16 +18,12 @@ const upload = multer({ storage: multer.memoryStorage() })
 
 app.use(express.json())
 
-/* SESSION (FIXED FOR PRODUCTION) */
+/* SESSION */
 
 app.use(session({
-store: new SQLiteStore({
-db:"sessions.db",
-dir:"./"
-}),
-secret:"ideapilot-secret",
-resave:false,
-saveUninitialized:false,
+secret: "ideapilot-secret",
+resave: false,
+saveUninitialized: false,
 cookie:{
 maxAge:1000*60*60*24
 }
@@ -185,7 +180,7 @@ res.redirect("/")
 })
 })
 
-/* RESET PASSWORD */
+/* FORGOT PASSWORD */
 
 app.post("/reset-password", async (req,res)=>{
 
@@ -221,7 +216,7 @@ res.json({error:"Reset failed"})
 
 })
 
-/* CHANGE PASSWORD */
+/* CHANGE PASSWORD (SETTINGS PANEL) */
 
 app.post("/change-password", requireLogin, async (req,res)=>{
 
@@ -338,11 +333,17 @@ app.post("/followup", requireLogin, upload.single("file"), async(req,res)=>{
 
 try{
 
-const {chatId,question}=req.body
+const {chatId,question,mode}=req.body
 
 const messages = db.prepare(
 "SELECT role,content FROM messages WHERE chat_id=?"
 ).all(chatId)
+
+let systemPrompt = `
+You are IdeaPilot, an AI startup advisor.
+
+Use the conversation history to understand the user's business ideas.
+`
 
 let history = messages.map(m=>({
 role:m.role,
@@ -357,7 +358,7 @@ content:question
 const completion = await openai.chat.completions.create({
 model:"gpt-4o-mini",
 messages:[
-{role:"system",content:"You are IdeaPilot helping refine business ideas."},
+{role:"system",content:systemPrompt},
 ...history
 ]
 })
@@ -371,6 +372,20 @@ db.prepare(
 db.prepare(
 "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
 ).run(chatId,"assistant",reply)
+
+const chat = db.prepare(
+"SELECT title FROM chats WHERE id=?"
+).get(chatId)
+
+if(chat && chat.title==="New Chat"){
+
+const title = await generateAITitle(question)
+
+db.prepare(
+"UPDATE chats SET title=? WHERE id=?"
+).run(title,chatId)
+
+}
 
 res.json({reply})
 
