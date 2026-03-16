@@ -23,10 +23,7 @@ app.use(express.json())
 app.use(session({
 secret: "ideapilot-secret",
 resave: false,
-saveUninitialized: false,
-cookie:{
-maxAge:1000*60*60*24
-}
+saveUninitialized: false
 }))
 
 /* DATABASE */
@@ -87,7 +84,7 @@ messages:[
 max_tokens:20
 })
 
-return completion?.choices?.[0]?.message?.content?.trim() || "New Chat"
+return completion.choices[0].message.content.trim()
 
 }catch(err){
 
@@ -103,7 +100,7 @@ app.get("/",(req,res)=>{
 res.sendFile(path.join(__dirname,"landing.html"))
 })
 
-/* DASHBOARD */
+/* DASHBOARD (LOGIN PROTECTED) */
 
 app.get("/dashboard",(req,res)=>{
 
@@ -122,10 +119,6 @@ app.post("/signup", async (req,res)=>{
 try{
 
 const {email,password} = req.body
-
-if(!email || !password){
-return res.json({error:"Missing email or password"})
-}
 
 const hash = await bcrypt.hash(password,10)
 
@@ -180,70 +173,6 @@ res.redirect("/")
 })
 })
 
-/* FORGOT PASSWORD */
-
-app.post("/reset-password", async (req,res)=>{
-
-try{
-
-const {email,password} = req.body
-
-if(!email || !password){
-return res.json({error:"Missing email or password"})
-}
-
-const user = db.prepare(
-"SELECT * FROM users WHERE email=?"
-).get(email)
-
-if(!user){
-return res.json({error:"Email not found"})
-}
-
-const hash = await bcrypt.hash(password,10)
-
-db.prepare(
-"UPDATE users SET password=? WHERE email=?"
-).run(hash,email)
-
-res.json({status:"Password updated"})
-
-}catch(err){
-
-res.json({error:"Reset failed"})
-
-}
-
-})
-
-/* CHANGE PASSWORD (SETTINGS PANEL) */
-
-app.post("/change-password", requireLogin, async (req,res)=>{
-
-try{
-
-const {password} = req.body
-
-if(!password){
-return res.json({error:"Password required"})
-}
-
-const hash = await bcrypt.hash(password,10)
-
-db.prepare(
-"UPDATE users SET password=? WHERE id=?"
-).run(hash,req.session.userId)
-
-res.json({status:"Password updated"})
-
-}catch{
-
-res.json({error:"Update failed"})
-
-}
-
-})
-
 /* CREATE CHAT */
 
 app.post("/create-chat", requireLogin, (req,res)=>{
@@ -294,6 +223,14 @@ Risk Level
 Startup Capital
 Execution Difficulty
 Success Potential
+
+Rules:
+
+Write natural readable paragraphs.
+Avoid markdown symbols.
+Feasibility Score must include a number out of 10.
+Startup Capital should provide a realistic range.
+Success Potential should summarize if the idea is worth pursuing.
 `
 
 const completion = await openai.chat.completions.create({
@@ -304,7 +241,7 @@ messages:[
 ]
 })
 
-const reply = completion?.choices?.[0]?.message?.content || "AI could not generate response."
+const reply = completion.choices[0].message.content
 
 const chatId = Date.now().toString()
 
@@ -343,7 +280,22 @@ let systemPrompt = `
 You are IdeaPilot, an AI startup advisor.
 
 Use the conversation history to understand the user's business ideas.
+
+Response behavior:
+
+If user asks to improve idea → Idea Refinement Analysis
+If user asks to compare ideas → Idea Comparison
+If user asks how to start → Execution Roadmap
+Otherwise respond normally like a startup advisor.
 `
+
+if(mode==="research"){
+systemPrompt="Act as a market researcher analyzing demand and competition."
+}
+
+if(mode==="build"){
+systemPrompt="Act as a startup builder guiding execution steps."
+}
 
 let history = messages.map(m=>({
 role:m.role,
@@ -363,7 +315,7 @@ messages:[
 ]
 })
 
-const reply = completion?.choices?.[0]?.message?.content || "AI response failed."
+const reply = completion.choices[0].message.content
 
 db.prepare(
 "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
