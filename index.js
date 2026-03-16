@@ -3,6 +3,7 @@ const express = require("express")
 const OpenAI = require("openai")
 const multer = require("multer")
 const path = require("path")
+const fs = require("fs")
 const Database = require("better-sqlite3")
 const bcrypt = require("bcrypt")
 const session = require("express-session")
@@ -17,18 +18,28 @@ apiKey: process.env.OPENAI_API_KEY
 const upload = multer({ storage: multer.memoryStorage() })
 
 app.use(express.json())
+app.use(express.urlencoded({extended:true}))
 
 /* SESSION */
 
 app.use(session({
 secret: "ideapilot-secret",
 resave: false,
-saveUninitialized: false
+saveUninitialized: false,
+cookie:{
+maxAge:1000*60*60*24
+}
 }))
 
-/* DATABASE */
+/* DATABASE (PERSISTENT IF /data EXISTS) */
 
-const db = new Database("ideapilot.db")
+let dbPath = "ideapilot.db"
+
+if(fs.existsSync("/data")){
+dbPath = "/data/ideapilot.db"
+}
+
+const db = new Database(dbPath)
 
 /* USERS */
 
@@ -61,18 +72,15 @@ db.prepare(`CREATE TABLE IF NOT EXISTS messages (
 /* LOGIN CHECK */
 
 function requireLogin(req,res,next){
-
 if(!req.session.userId){
 return res.redirect("/login.html")
 }
-
 next()
 }
 
 /* AI TITLE GENERATOR */
 
 async function generateAITitle(text){
-
 try{
 
 const completion = await openai.chat.completions.create({
@@ -91,7 +99,6 @@ return completion.choices[0].message.content.trim()
 return text.split(" ").slice(0,6).join(" ")
 
 }
-
 }
 
 /* LANDING PAGE */
@@ -100,7 +107,7 @@ app.get("/",(req,res)=>{
 res.sendFile(path.join(__dirname,"landing.html"))
 })
 
-/* DASHBOARD (LOGIN PROTECTED) */
+/* DASHBOARD */
 
 app.get("/dashboard",(req,res)=>{
 
@@ -109,7 +116,6 @@ return res.redirect("/login.html")
 }
 
 res.sendFile(path.join(__dirname,"index.html"))
-
 })
 
 /* SIGNUP */
@@ -133,7 +139,6 @@ res.json({status:"account created"})
 res.json({error:"email already exists"})
 
 }
-
 })
 
 /* LOGIN */
@@ -162,7 +167,6 @@ res.json({
 status:"logged in",
 redirect:"/dashboard"
 })
-
 })
 
 /* LOGOUT */
@@ -184,7 +188,6 @@ db.prepare(
 ).run(chatId,req.session.userId,"New Chat")
 
 res.json({chatId})
-
 })
 
 /* GENERATE PLAN */
@@ -223,14 +226,6 @@ Risk Level
 Startup Capital
 Execution Difficulty
 Success Potential
-
-Rules:
-
-Write natural readable paragraphs.
-Avoid markdown symbols.
-Feasibility Score must include a number out of 10.
-Startup Capital should provide a realistic range.
-Success Potential should summarize if the idea is worth pursuing.
 `
 
 const completion = await openai.chat.completions.create({
@@ -259,12 +254,10 @@ res.json({chatId,reply})
 
 console.log(err)
 res.status(500).json({error:"AI error"})
-
 }
-
 })
 
-/* FOLLOWUP CHAT */
+/* FOLLOWUP */
 
 app.post("/followup", requireLogin, upload.single("file"), async(req,res)=>{
 
@@ -275,27 +268,6 @@ const {chatId,question,mode}=req.body
 const messages = db.prepare(
 "SELECT role,content FROM messages WHERE chat_id=?"
 ).all(chatId)
-
-let systemPrompt = `
-You are IdeaPilot, an AI startup advisor.
-
-Use the conversation history to understand the user's business ideas.
-
-Response behavior:
-
-If user asks to improve idea → Idea Refinement Analysis
-If user asks to compare ideas → Idea Comparison
-If user asks how to start → Execution Roadmap
-Otherwise respond normally like a startup advisor.
-`
-
-if(mode==="research"){
-systemPrompt="Act as a market researcher analyzing demand and competition."
-}
-
-if(mode==="build"){
-systemPrompt="Act as a startup builder guiding execution steps."
-}
 
 let history = messages.map(m=>({
 role:m.role,
@@ -309,10 +281,7 @@ content:question
 
 const completion = await openai.chat.completions.create({
 model:"gpt-4o-mini",
-messages:[
-{role:"system",content:systemPrompt},
-...history
-]
+messages:history
 })
 
 const reply = completion.choices[0].message.content
@@ -325,20 +294,6 @@ db.prepare(
 "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
 ).run(chatId,"assistant",reply)
 
-const chat = db.prepare(
-"SELECT title FROM chats WHERE id=?"
-).get(chatId)
-
-if(chat && chat.title==="New Chat"){
-
-const title = await generateAITitle(question)
-
-db.prepare(
-"UPDATE chats SET title=? WHERE id=?"
-).run(title,chatId)
-
-}
-
 res.json({reply})
 
 }catch(err){
@@ -346,10 +301,9 @@ res.json({reply})
 console.log(err)
 res.json({reply:"AI error"})
 }
-
 })
 
-/* GET USER CHATS */
+/* GET CHATS */
 
 app.get("/chats", requireLogin, (req,res)=>{
 
@@ -364,14 +318,12 @@ const msgs = db.prepare(
 ).all(chat.id)
 
 return {...chat,messages:msgs}
-
 })
 
 res.json(result)
-
 })
 
-/* RENAME CHAT */
+/* RENAME */
 
 app.post("/rename-chat", requireLogin, (req,res)=>{
 
@@ -382,10 +334,9 @@ db.prepare(
 ).run(title,id,req.session.userId)
 
 res.json({status:"renamed"})
-
 })
 
-/* DELETE CHAT */
+/* DELETE */
 
 app.post("/delete-chat", requireLogin, (req,res)=>{
 
@@ -395,10 +346,9 @@ db.prepare("DELETE FROM chats WHERE id=? AND user_id=?").run(id,req.session.user
 db.prepare("DELETE FROM messages WHERE chat_id=?").run(id)
 
 res.json({status:"deleted"})
-
 })
 
-/* STATIC FILES */
+/* STATIC */
 
 app.use(express.static(path.join(__dirname)))
 
