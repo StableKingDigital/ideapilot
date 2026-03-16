@@ -73,53 +73,15 @@ cursor:pointer;
 margin:20px 0;
 }
 
-/* CHAT LIST */
-
 .chatItem{
 background:#1e293b;
 padding:10px;
 border-radius:6px;
 margin-bottom:8px;
-display:flex;
-justify-content:space-between;
-align-items:center;
-cursor:pointer;
-position:relative;
-}
-
-/* MENU */
-
-.menu{
-cursor:pointer;
-padding:4px 8px;
-}
-
-.menuDropdown{
-display:none;
-position:absolute;
-right:10px;
-top:32px;
-background:#020617;
-border:1px solid #334155;
-border-radius:6px;
-flex-direction:column;
-z-index:3000;
-}
-
-.menuDropdown button{
-background:none;
-border:none;
-color:white;
-padding:8px 12px;
-text-align:left;
 cursor:pointer;
 }
 
-.menuDropdown button:hover{
-background:#1e293b;
-}
-
-/* SETTINGS AREA */
+/* FOOTER */
 
 #sidebarFooter{
 margin-top:auto;
@@ -150,8 +112,6 @@ display:flex;
 flex-direction:column;
 height:100%;
 }
-
-/* TOP BAR */
 
 #topBar{
 flex-shrink:0;
@@ -210,13 +170,7 @@ background:#2563eb;
 align-self:flex-end;
 }
 
-img{
-max-width:220px;
-border-radius:8px;
-margin-top:8px;
-}
-
-/* INPUT BAR */
+/* INPUT */
 
 #inputBar{
 flex-shrink:0;
@@ -238,12 +192,6 @@ border-radius:8px;
 padding:6px;
 }
 
-#toolsBtn{
-font-size:20px;
-cursor:pointer;
-margin-right:8px;
-}
-
 textarea{
 flex:1;
 resize:none;
@@ -251,7 +199,6 @@ background:transparent;
 border:none;
 color:white;
 outline:none;
-min-height:20px;
 }
 
 #send{
@@ -270,6 +217,7 @@ background:#020617;
 padding:20px;
 border-radius:10px;
 border:1px solid #1e293b;
+max-width:600px;
 }
 
 .ideaCard input{
@@ -314,13 +262,9 @@ width:100%;
 
 <div id="sidebarFooter">
 
-<button class="footerBtn" onclick="changePassword()">
-⚙ Change Password
-</button>
+<button class="footerBtn" onclick="changePassword()">⚙ Change Password</button>
 
-<button class="footerBtn" onclick="logout()">
-🚪 Logout
-</button>
+<button class="footerBtn" onclick="logout()">🚪 Logout</button>
 
 </div>
 
@@ -341,15 +285,12 @@ width:100%;
 <div id="inputBar">
 
 <div id="inputContainer">
-<div id="toolsBtn" onclick="document.getElementById('imageUpload').click()">+</div>
 <textarea id="question" placeholder="Ask follow-up question"></textarea>
 </div>
 
 <button id="send" onclick="sendMessage()">Send</button>
 
 </div>
-
-<input type="file" id="imageUpload" hidden accept="image/*">
 
 </div>
 
@@ -403,24 +344,12 @@ alert("Update failed")
 
 let currentChatId=null
 let currentMode="idea"
-let pendingImage=null
 
 const messages=document.getElementById("messages")
 const chatList=document.getElementById("chatList")
 const textarea=document.getElementById("question")
 
-function cleanAI(text){
-return text.replace(/\*\*/g,"").replace(/###/g,"").replace(/##/g,"").replace(/#/g,"")
-}
-
-function setMode(mode,btn){
-currentMode=mode
-document.querySelectorAll(".modeBtn").forEach(b=>b.classList.remove("active"))
-btn.classList.add("active")
-}
-
 function addAI(text){
-text=cleanAI(text)
 const div=document.createElement("div")
 div.className="message ai"
 div.innerText=text
@@ -435,63 +364,60 @@ div.innerText=text
 messages.appendChild(div)
 }
 
-textarea.addEventListener("keydown",function(e){
+/* IDEA FORM */
 
-const isMobile=/Mobi|Android/i.test(navigator.userAgent)
+function showIdeaForm(){
 
-if(isMobile){
-if(e.key==="Enter"){
-e.preventDefault()
-sendMessage()
-}
-}else{
-if(e.key==="Enter" && !e.shiftKey){
-e.preventDefault()
-sendMessage()
-}
+messages.innerHTML=""
+
+const form=document.createElement("div")
+form.className="ideaCard"
+
+form.innerHTML=`
+
+<h2>Generate Startup Plan</h2>
+
+<input id="idea" placeholder="Your idea">
+
+<input id="why" placeholder="Why it matters">
+
+<input id="skills" placeholder="Your skills">
+
+<input id="resources" placeholder="Resources">
+
+<input id="hours" placeholder="Hours per week">
+
+<input id="income" placeholder="Income goal">
+
+<input id="currency" placeholder="Currency">
+
+<button id="generateBtn" onclick="generatePlan()">Generate Plan</button>
+
+`
+
+messages.appendChild(form)
+
 }
 
+async function generatePlan(){
+
+const res=await fetch("/plan",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+idea:idea.value,
+why:why.value,
+skills:skills.value,
+resources:resources.value,
+hours:hours.value,
+incomeGoal:income.value,
+currency:currency.value
+})
 })
 
-/* IMAGE PREVIEW */
-
-document.getElementById("imageUpload").addEventListener("change",function(){
-const file=this.files[0]
-if(!file) return
-pendingImage=file
-})
-
-/* SEND MESSAGE */
-
-async function sendMessage(){
-
-const text=textarea.value.trim()
-if(!text && !pendingImage) return
-
-textarea.value=""
-addUser(text)
-
-if(!currentChatId){
-
-const res=await fetch("/create-chat",{method:"POST"})
 const data=await res.json()
+
 currentChatId=data.chatId
-
-}
-
-const formData=new FormData()
-formData.append("chatId",currentChatId)
-formData.append("question",text)
-formData.append("mode",currentMode)
-
-if(pendingImage){
-formData.append("file",pendingImage)
-}
-
-pendingImage=null
-
-const res=await fetch("/followup",{method:"POST",body:formData})
-const data=await res.json()
 
 addAI(data.reply)
 
@@ -499,7 +425,30 @@ loadChats()
 
 }
 
-/* LOAD CHATS */
+/* SEND MESSAGE */
+
+async function sendMessage(){
+
+const text=textarea.value.trim()
+if(!text) return
+
+textarea.value=""
+
+addUser(text)
+
+const formData=new FormData()
+formData.append("chatId",currentChatId)
+formData.append("question",text)
+formData.append("mode",currentMode)
+
+const res=await fetch("/followup",{method:"POST",body:formData})
+const data=await res.json()
+
+addAI(data.reply)
+
+}
+
+/* CHAT LIST */
 
 async function loadChats(){
 
@@ -512,19 +461,17 @@ chats.reverse().forEach(chat=>{
 
 const div=document.createElement("div")
 div.className="chatItem"
-
-const title=document.createElement("span")
-title.innerText=chat.title||"Untitled Chat"
-
-div.appendChild(title)
+div.innerText=chat.title||"Chat"
 
 div.onclick=()=>{
 currentChatId=chat.id
 messages.innerHTML=""
+
 chat.messages.forEach(m=>{
 if(m.role==="user") addUser(m.content)
 else addAI(m.content)
 })
+
 sidebar.classList.remove("open")
 overlay.classList.remove("show")
 }
@@ -537,12 +484,14 @@ chatList.appendChild(div)
 
 function startNew(){
 
-messages.innerHTML=""
 currentChatId=null
-addAI("Start a new idea discussion or generate a structured startup plan.")
+showIdeaForm()
 
 }
 
+/* INITIAL LOAD */
+
+showIdeaForm()
 loadChats()
 
 </script>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Reset Password</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+
+body{
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+background:#0f172a;
+color:white;
+display:flex;
+align-items:center;
+justify-content:center;
+height:100vh;
+}
+
+.card{
+background:#020617;
+padding:40px;
+border-radius:10px;
+border:1px solid #1e293b;
+width:320px;
+}
+
+input{
+width:100%;
+padding:12px;
+margin-bottom:12px;
+border-radius:6px;
+border:1px solid #334155;
+background:#0f172a;
+color:white;
+}
+
+button{
+width:100%;
+padding:12px;
+background:#22c55e;
+border:none;
+border-radius:6px;
+color:white;
+cursor:pointer;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>Reset Password</h2>
+
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="New Password">
+
+<button onclick="resetPassword()">Update Password</button>
+
+</div>
+
+<script>
+
+async function resetPassword(){
+
+const email=document.getElementById("email").value
+const password=document.getElementById("password").value
+
+const res=await fetch("/reset-password",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({email,password})
+})
+
+const data=await res.json()
+
+if(data.status){
+alert("Password updated")
+window.location="/login.html"
+}else{
+alert(data.error)
+}
+
+}
+
+</script>
+
+</body>
+</html>
