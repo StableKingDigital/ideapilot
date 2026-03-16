@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>IdeaPilot</title>
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:#0f172a;
+color:white;
+display:flex;
+height:100vh;
+}
+
+#sidebar{
+width:260px;
+background:#020617;
+padding:20px;
+}
+
+#brand h2{margin:0}
+#brand p{font-size:12px;color:#94a3b8}
+
+#newChat{
+background:#22c55e;
+border:none;
+padding:12px;
+width:100%;
+color:white;
+border-radius:6px;
+cursor:pointer;
+margin:20px 0;
+}
+
+.chatItem{
+background:#1e293b;
+padding:10px;
+border-radius:6px;
+margin-bottom:8px;
+cursor:pointer;
+white-space:nowrap;
+overflow:hidden;
+text-overflow:ellipsis;
+}
+
+#main{
+flex:1;
+display:flex;
+flex-direction:column;
+}
+
+#messages{
+flex:1;
+overflow:auto;
+padding:30px;
+display:flex;
+flex-direction:column;
+gap:14px;
+}
+
+.message{
+max-width:850px;
+padding:14px;
+border-radius:10px;
+line-height:1.6;
+}
+
+.ai{background:#1e293b}
+.user{
+background:#2563eb;
+align-self:flex-end;
+}
+
+#formPage{
+padding:40px;
+max-width:650px;
+}
+
+input{
+width:100%;
+margin-bottom:10px;
+padding:10px;
+background:#020617;
+border:1px solid #1e293b;
+color:white;
+}
+
+.generateBtn{
+background:#22c55e;
+border:none;
+padding:12px;
+color:white;
+border-radius:6px;
+cursor:pointer;
+}
+
+#inputBar{
+display:flex;
+gap:10px;
+padding:12px;
+background:#020617;
+}
+
+#question{
+flex:1;
+padding:10px;
+background:#0f172a;
+border:1px solid #1e293b;
+color:white;
+border-radius:6px;
+}
+
+#send{
+background:#22c55e;
+border:none;
+padding:10px 18px;
+border-radius:6px;
+cursor:pointer;
+color:white;
+}
+</style>
+</head>
+
+<body>
+
+<div id="sidebar">
+<div id="brand">
+<h2>IdeaPilot</h2>
+<p>Turn ideas into execution paths</p>
+</div>
+
+<button id="newChat" onclick="startNew()">+ New Chat</button>
+
+<h4>Your Chats</h4>
+<div id="chatList"></div>
+</div>
+
+<div id="main">
+
+<div id="messages"></div>
+
+<div id="formPage">
+<h2>Clarify Your Idea. Build Your Path.</h2>
+
+<input id="idea" placeholder="Idea">
+<input id="why" placeholder="Why does this idea matter">
+<input id="skills" placeholder="Skills">
+<input id="resources" placeholder="Resources">
+<input id="hours" placeholder="Hours per week">
+<input id="income" placeholder="Monthly income target">
+<input id="currency" placeholder="Currency">
+
+<button class="generateBtn" onclick="generate()">Generate Direction Plan</button>
+</div>
+
+<div id="inputBar">
+<input id="question" placeholder="Ask follow-up question">
+<button id="send" onclick="sendQuestion()">Send</button>
+</div>
+
+</div>
+
+<script>
+
+let currentChatId=null
+const messages=document.getElementById("messages")
+const chatList=document.getElementById("chatList")
+
+function addMessage(content,type){
+const div=document.createElement("div")
+div.className="message "+type
+div.innerText=content
+messages.appendChild(div)
+messages.scrollTop=messages.scrollHeight
+}
+
+async function generate(){
+
+messages.innerHTML=""
+document.getElementById("formPage").style.display="none"
+
+addMessage("Generating your AI direction plan...","ai")
+
+const res=await fetch("/plan",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+idea:idea.value,
+why:why.value,
+skills:skills.value,
+resources:resources.value,
+hours:hours.value,
+incomeGoal:income.value,
+currency:currency.value
+})
+})
+
+const data=await res.json()
+
+messages.innerHTML=""
+currentChatId=data.chatId
+
+addMessage(data.reply,"ai")
+
+loadChats()
+}
+
+async function sendQuestion(){
+
+const question=document.getElementById("question").value.trim()
+
+if(!question) return
+
+addMessage(question,"user")
+
+document.getElementById("question").value=""
+
+const res=await fetch("/followup",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+chatId:currentChatId,
+question
+})
+})
+
+const data=await res.json()
+
+addMessage(data.reply,"ai")
+}
+
+async function loadChats(){
+
+const res=await fetch("/chats")
+let chats=await res.json()
+
+chatList.innerHTML=""
+
+chats.reverse().forEach(chat=>{
+
+const div=document.createElement("div")
+div.className="chatItem"
+div.innerText=chat.title
+
+div.onclick=()=>{
+currentChatId=chat.id
+messages.innerHTML=""
+
+chat.messages.forEach(m=>{
+addMessage(m.content,m.role==="user"?"user":"ai")
+})
+}
+
+chatList.appendChild(div)
+
+})
+
+}
+
+function startNew(){
+messages.innerHTML=""
+document.getElementById("formPage").style.display="block"
+}
+
+loadChats()
+
+</script>
+
+</body>
+</html>

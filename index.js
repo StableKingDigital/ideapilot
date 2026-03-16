@@ -11,7 +11,7 @@ const app = express()
 const PORT = process.env.PORT || 3000
 
 const openai = new OpenAI({
- apiKey: process.env.OPENAI_API_KEY
+apiKey: process.env.OPENAI_API_KEY
 })
 
 const upload = multer({ storage: multer.memoryStorage() })
@@ -21,9 +21,12 @@ app.use(express.json())
 /* SESSION */
 
 app.use(session({
- secret: "ideapilot-secret",
- resave: false,
- saveUninitialized: false
+secret: "ideapilot-secret",
+resave: false,
+saveUninitialized: false,
+cookie:{
+maxAge:1000*60*60*24
+}
 }))
 
 /* DATABASE */
@@ -32,89 +35,83 @@ const db = new Database("ideapilot.db")
 
 /* USERS */
 
-db.prepare(`
-CREATE TABLE IF NOT EXISTS users (
+db.prepare(`CREATE TABLE IF NOT EXISTS users (
  id INTEGER PRIMARY KEY AUTOINCREMENT,
  email TEXT UNIQUE,
  password TEXT,
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-`).run()
+)`).run()
 
 /* CHATS */
 
-db.prepare(`
-CREATE TABLE IF NOT EXISTS chats (
+db.prepare(`CREATE TABLE IF NOT EXISTS chats (
  id TEXT PRIMARY KEY,
  user_id INTEGER,
  title TEXT,
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-`).run()
+)`).run()
 
 /* MESSAGES */
 
-db.prepare(`
-CREATE TABLE IF NOT EXISTS messages (
+db.prepare(`CREATE TABLE IF NOT EXISTS messages (
  id INTEGER PRIMARY KEY AUTOINCREMENT,
  chat_id TEXT,
  role TEXT,
  content TEXT,
  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-`).run()
+)`).run()
 
 /* LOGIN CHECK */
 
 function requireLogin(req,res,next){
 
- if(!req.session.userId){
-  return res.redirect("/login.html")
- }
+if(!req.session.userId){
+return res.redirect("/login.html")
+}
 
- next()
+next()
 }
 
 /* AI TITLE GENERATOR */
 
 async function generateAITitle(text){
 
- try{
+try{
 
-  const completion = await openai.chat.completions.create({
-   model:"gpt-4o-mini",
-   messages:[
-    {role:"system",content:"Create a short chat title (3–6 words)."},
-    {role:"user",content:text}
-   ],
-   max_tokens:20
-  })
+const completion = await openai.chat.completions.create({
+model:"gpt-4o-mini",
+messages:[
+{role:"system",content:"Create a short chat title (3–6 words)."},
+{role:"user",content:text}
+],
+max_tokens:20
+})
 
-  return completion.choices[0].message.content.trim()
+return completion?.choices?.[0]?.message?.content?.trim() || "New Chat"
 
- }catch(err){
+}catch(err){
 
-  return text.split(" ").slice(0,6).join(" ")
+return text.split(" ").slice(0,6).join(" ")
 
- }
+}
 
 }
 
 /* LANDING PAGE */
 
 app.get("/",(req,res)=>{
- res.sendFile(path.join(__dirname,"landing.html"))
+res.sendFile(path.join(__dirname,"landing.html"))
 })
 
-/* DASHBOARD (LOGIN PROTECTED) */
+/* DASHBOARD */
 
 app.get("/dashboard",(req,res)=>{
 
- if(!req.session.userId){
-  return res.redirect("/login.html")
- }
+if(!req.session.userId){
+return res.redirect("/login.html")
+}
 
- res.sendFile(path.join(__dirname,"index.html"))
+res.sendFile(path.join(__dirname,"index.html"))
 
 })
 
@@ -122,23 +119,27 @@ app.get("/dashboard",(req,res)=>{
 
 app.post("/signup", async (req,res)=>{
 
- try{
+try{
 
-  const {email,password} = req.body
+const {email,password} = req.body
 
-  const hash = await bcrypt.hash(password,10)
+if(!email || !password){
+return res.json({error:"Missing email or password"})
+}
 
-  db.prepare(
-   "INSERT INTO users (email,password) VALUES (?,?)"
-  ).run(email,hash)
+const hash = await bcrypt.hash(password,10)
 
-  res.json({status:"account created"})
+db.prepare(
+"INSERT INTO users (email,password) VALUES (?,?)"
+).run(email,hash)
 
- }catch(err){
+res.json({status:"account created"})
 
-  res.json({error:"email already exists"})
+}catch(err){
 
- }
+res.json({error:"email already exists"})
+
+}
 
 })
 
@@ -146,50 +147,114 @@ app.post("/signup", async (req,res)=>{
 
 app.post("/login", async (req,res)=>{
 
- const {email,password} = req.body
+const {email,password} = req.body
 
- const user = db.prepare(
-  "SELECT * FROM users WHERE email=?"
- ).get(email)
+const user = db.prepare(
+"SELECT * FROM users WHERE email=?"
+).get(email)
 
- if(!user){
-  return res.json({error:"user not found"})
- }
+if(!user){
+return res.json({error:"user not found"})
+}
 
- const valid = await bcrypt.compare(password,user.password)
+const valid = await bcrypt.compare(password,user.password)
 
- if(!valid){
-  return res.json({error:"invalid password"})
- }
+if(!valid){
+return res.json({error:"invalid password"})
+}
 
- req.session.userId = user.id
+req.session.userId = user.id
 
- res.json({
-  status:"logged in",
-  redirect:"/dashboard"
- })
+res.json({
+status:"logged in",
+redirect:"/dashboard"
+})
 
 })
 
 /* LOGOUT */
 
 app.get("/logout",(req,res)=>{
- req.session.destroy(()=>{
-  res.redirect("/")
- })
+req.session.destroy(()=>{
+res.redirect("/")
+})
+})
+
+/* FORGOT PASSWORD */
+
+app.post("/reset-password", async (req,res)=>{
+
+try{
+
+const {email,password} = req.body
+
+if(!email || !password){
+return res.json({error:"Missing email or password"})
+}
+
+const user = db.prepare(
+"SELECT * FROM users WHERE email=?"
+).get(email)
+
+if(!user){
+return res.json({error:"Email not found"})
+}
+
+const hash = await bcrypt.hash(password,10)
+
+db.prepare(
+"UPDATE users SET password=? WHERE email=?"
+).run(hash,email)
+
+res.json({status:"Password updated"})
+
+}catch(err){
+
+res.json({error:"Reset failed"})
+
+}
+
+})
+
+/* CHANGE PASSWORD (SETTINGS PANEL) */
+
+app.post("/change-password", requireLogin, async (req,res)=>{
+
+try{
+
+const {password} = req.body
+
+if(!password){
+return res.json({error:"Password required"})
+}
+
+const hash = await bcrypt.hash(password,10)
+
+db.prepare(
+"UPDATE users SET password=? WHERE id=?"
+).run(hash,req.session.userId)
+
+res.json({status:"Password updated"})
+
+}catch{
+
+res.json({error:"Update failed"})
+
+}
+
 })
 
 /* CREATE CHAT */
 
 app.post("/create-chat", requireLogin, (req,res)=>{
 
- const chatId = Date.now().toString()
+const chatId = Date.now().toString()
 
- db.prepare(
-  "INSERT INTO chats (id,user_id,title) VALUES (?,?,?)"
- ).run(chatId,req.session.userId,"New Chat")
+db.prepare(
+"INSERT INTO chats (id,user_id,title) VALUES (?,?,?)"
+).run(chatId,req.session.userId,"New Chat")
 
- res.json({chatId})
+res.json({chatId})
 
 })
 
@@ -197,11 +262,11 @@ app.post("/create-chat", requireLogin, (req,res)=>{
 
 app.post("/plan", requireLogin, async(req,res)=>{
 
- try{
+try{
 
-  const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
+const {idea,why,skills,resources,hours,incomeGoal,currency}=req.body
 
-  const prompt = `
+const prompt = `
 You are IdeaPilot — an AI startup analyst.
 
 Analyze the user's business idea carefully.
@@ -229,44 +294,36 @@ Risk Level
 Startup Capital
 Execution Difficulty
 Success Potential
-
-Rules:
-
-Write natural readable paragraphs.
-Avoid markdown symbols.
-Feasibility Score must include a number out of 10.
-Startup Capital should provide a realistic range.
-Success Potential should summarize if the idea is worth pursuing.
 `
 
-  const completion = await openai.chat.completions.create({
-   model:"gpt-4o-mini",
-   messages:[
-    {role:"system",content:"You are IdeaPilot, an experienced startup advisor."},
-    {role:"user",content:prompt}
-   ]
-  })
+const completion = await openai.chat.completions.create({
+model:"gpt-4o-mini",
+messages:[
+{role:"system",content:"You are IdeaPilot, an experienced startup advisor."},
+{role:"user",content:prompt}
+]
+})
 
-  const reply = completion.choices[0].message.content
+const reply = completion?.choices?.[0]?.message?.content || "AI could not generate response."
 
-  const chatId = Date.now().toString()
+const chatId = Date.now().toString()
 
-  db.prepare(
-   "INSERT INTO chats (id,user_id,title) VALUES (?,?,?)"
-  ).run(chatId,req.session.userId,idea)
+db.prepare(
+"INSERT INTO chats (id,user_id,title) VALUES (?,?,?)"
+).run(chatId,req.session.userId,idea)
 
-  db.prepare(
-   "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
-  ).run(chatId,"assistant",reply)
+db.prepare(
+"INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
+).run(chatId,"assistant",reply)
 
-  res.json({chatId,reply})
+res.json({chatId,reply})
 
- }catch(err){
+}catch(err){
 
-  console.log(err)
-  res.status(500).json({error:"AI error"})
+console.log(err)
+res.status(500).json({error:"AI error"})
 
- }
+}
 
 })
 
@@ -274,84 +331,69 @@ Success Potential should summarize if the idea is worth pursuing.
 
 app.post("/followup", requireLogin, upload.single("file"), async(req,res)=>{
 
- try{
+try{
 
-  const {chatId,question,mode}=req.body
+const {chatId,question,mode}=req.body
 
-  const messages = db.prepare(
-   "SELECT role,content FROM messages WHERE chat_id=?"
-  ).all(chatId)
+const messages = db.prepare(
+"SELECT role,content FROM messages WHERE chat_id=?"
+).all(chatId)
 
-  let systemPrompt = `
+let systemPrompt = `
 You are IdeaPilot, an AI startup advisor.
 
 Use the conversation history to understand the user's business ideas.
-
-Response behavior:
-
-If user asks to improve idea → Idea Refinement Analysis
-If user asks to compare ideas → Idea Comparison
-If user asks how to start → Execution Roadmap
-Otherwise respond normally like a startup advisor.
 `
 
-  if(mode==="research"){
-   systemPrompt="Act as a market researcher analyzing demand and competition."
-  }
+let history = messages.map(m=>({
+role:m.role,
+content:m.content
+}))
 
-  if(mode==="build"){
-   systemPrompt="Act as a startup builder guiding execution steps."
-  }
+history.push({
+role:"user",
+content:question
+})
 
-  let history = messages.map(m=>({
-   role:m.role,
-   content:m.content
-  }))
+const completion = await openai.chat.completions.create({
+model:"gpt-4o-mini",
+messages:[
+{role:"system",content:systemPrompt},
+...history
+]
+})
 
-  history.push({
-   role:"user",
-   content:question
-  })
+const reply = completion?.choices?.[0]?.message?.content || "AI response failed."
 
-  const completion = await openai.chat.completions.create({
-   model:"gpt-4o-mini",
-   messages:[
-    {role:"system",content:systemPrompt},
-    ...history
-   ]
-  })
+db.prepare(
+"INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
+).run(chatId,"user",question)
 
-  const reply = completion.choices[0].message.content
+db.prepare(
+"INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
+).run(chatId,"assistant",reply)
 
-  db.prepare(
-   "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
-  ).run(chatId,"user",question)
+const chat = db.prepare(
+"SELECT title FROM chats WHERE id=?"
+).get(chatId)
 
-  db.prepare(
-   "INSERT INTO messages (chat_id,role,content) VALUES (?,?,?)"
-  ).run(chatId,"assistant",reply)
+if(chat && chat.title==="New Chat"){
 
-  const chat = db.prepare(
-   "SELECT title FROM chats WHERE id=?"
-  ).get(chatId)
+const title = await generateAITitle(question)
 
-  if(chat && chat.title==="New Chat"){
+db.prepare(
+"UPDATE chats SET title=? WHERE id=?"
+).run(title,chatId)
 
-   const title = await generateAITitle(question)
+}
 
-   db.prepare(
-    "UPDATE chats SET title=? WHERE id=?"
-   ).run(title,chatId)
+res.json({reply})
 
-  }
+}catch(err){
 
-  res.json({reply})
-
- }catch(err){
-
-  console.log(err)
-  res.json({reply:"AI error"})
- }
+console.log(err)
+res.json({reply:"AI error"})
+}
 
 })
 
@@ -359,21 +401,21 @@ Otherwise respond normally like a startup advisor.
 
 app.get("/chats", requireLogin, (req,res)=>{
 
- const chats = db.prepare(
-  "SELECT * FROM chats WHERE user_id=? ORDER BY created_at DESC"
- ).all(req.session.userId)
+const chats = db.prepare(
+"SELECT * FROM chats WHERE user_id=? ORDER BY created_at DESC"
+).all(req.session.userId)
 
- const result = chats.map(chat=>{
+const result = chats.map(chat=>{
 
-  const msgs = db.prepare(
-   "SELECT role,content FROM messages WHERE chat_id=?"
-  ).all(chat.id)
+const msgs = db.prepare(
+"SELECT role,content FROM messages WHERE chat_id=?"
+).all(chat.id)
 
-  return {...chat,messages:msgs}
+return {...chat,messages:msgs}
 
- })
+})
 
- res.json(result)
+res.json(result)
 
 })
 
@@ -381,13 +423,13 @@ app.get("/chats", requireLogin, (req,res)=>{
 
 app.post("/rename-chat", requireLogin, (req,res)=>{
 
- const {id,title}=req.body
+const {id,title}=req.body
 
- db.prepare(
-  "UPDATE chats SET title=? WHERE id=? AND user_id=?"
- ).run(title,id,req.session.userId)
+db.prepare(
+"UPDATE chats SET title=? WHERE id=? AND user_id=?"
+).run(title,id,req.session.userId)
 
- res.json({status:"renamed"})
+res.json({status:"renamed"})
 
 })
 
@@ -395,12 +437,12 @@ app.post("/rename-chat", requireLogin, (req,res)=>{
 
 app.post("/delete-chat", requireLogin, (req,res)=>{
 
- const {id}=req.body
+const {id}=req.body
 
- db.prepare("DELETE FROM chats WHERE id=? AND user_id=?").run(id,req.session.userId)
- db.prepare("DELETE FROM messages WHERE chat_id=?").run(id)
+db.prepare("DELETE FROM chats WHERE id=? AND user_id=?").run(id,req.session.userId)
+db.prepare("DELETE FROM messages WHERE chat_id=?").run(id)
 
- res.json({status:"deleted"})
+res.json({status:"deleted"})
 
 })
 
@@ -411,5 +453,6 @@ app.use(express.static(path.join(__dirname)))
 /* SERVER */
 
 app.listen(PORT,"0.0.0.0",()=>{
- console.log("IdeaPilot running on port "+PORT)
+console.log("IdeaPilot running on port "+PORT)
 })
+

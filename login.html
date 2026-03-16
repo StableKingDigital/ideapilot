@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html>
 <head>
 <title>IdeaPilot Login</title>
@@ -48,11 +49,10 @@ border:none;
 border-radius:6px;
 color:white;
 cursor:pointer;
-font-size:15px;
 }
 
 button:hover{
-opacity:0.9;
+background:#16a34a;
 }
 
 p{
@@ -65,15 +65,27 @@ color:#22c55e;
 text-decoration:none;
 }
 
-#error{
-color:#f87171;
-font-size:13px;
-margin-bottom:10px;
-text-align:center;
-display:none;
+/* PASSWORD FIELD */
+
+.passwordBox{
+position:relative;
+}
+
+.passwordBox input{
+padding-right:40px;
+}
+
+.eye{
+position:absolute;
+right:12px;
+top:50%;
+transform:translateY(-50%);
+cursor:pointer;
+font-size:16px;
 }
 
 </style>
+
 </head>
 
 <body>
@@ -82,12 +94,16 @@ display:none;
 
 <h2>Login</h2>
 
-<div id="error"></div>
-
 <input id="email" placeholder="Email">
+
+<div class="passwordBox">
 <input id="password" type="password" placeholder="Password">
+<span class="eye" onclick="togglePassword()">👁</span>
+</div>
 
 <button onclick="login()">Login</button>
+
+<p><a href="/forgot.html">Forgot password?</a></p>
 
 <p>No account? <a href="/signup.html">Create one</a></p>
 
@@ -95,27 +111,22 @@ display:none;
 
 <script>
 
-/* allow ENTER key login */
+function togglePassword(){
 
-document.addEventListener("keydown",function(e){
-if(e.key==="Enter"){
-login()
+const input=document.getElementById("password")
+
+if(input.type==="password"){
+input.type="text"
+}else{
+input.type="password"
 }
-})
+
+}
 
 async function login(){
 
-const email=document.getElementById("email").value.trim()
-const password=document.getElementById("password").value.trim()
-const errorBox=document.getElementById("error")
-
-errorBox.style.display="none"
-
-if(!email || !password){
-errorBox.innerText="Please enter email and password"
-errorBox.style.display="block"
-return
-}
+const email=document.getElementById("email").value
+const password=document.getElementById("password").value
 
 const res=await fetch("/login",{
 method:"POST",
@@ -126,16 +137,9 @@ body:JSON.stringify({email,password})
 const data=await res.json()
 
 if(data.status){
-
-/* use backend redirect */
-
-window.location = data.redirect || "/dashboard"
-
+window.location=data.redirect
 }else{
-
-errorBox.innerText = data.error || "Login failed"
-errorBox.style.display="block"
-
+alert(data.error)
 }
 
 }
@@ -144,3 +148,4 @@ errorBox.style.display="block"
 
 </body>
 </html>
+

@@ -36,6 +36,8 @@ overflow-y:auto;
 transform:translateX(-100%);
 transition:transform .25s;
 z-index:2000;
+display:flex;
+flex-direction:column;
 }
 
 #sidebar.open{
@@ -115,6 +117,30 @@ cursor:pointer;
 
 .menuDropdown button:hover{
 background:#1e293b;
+}
+
+/* SETTINGS AREA */
+
+#sidebarFooter{
+margin-top:auto;
+padding-top:20px;
+border-top:1px solid #1e293b;
+}
+
+.footerBtn{
+width:100%;
+padding:10px;
+margin-top:8px;
+background:#1e293b;
+border:none;
+border-radius:6px;
+color:white;
+cursor:pointer;
+text-align:left;
+}
+
+.footerBtn:hover{
+background:#334155;
 }
 
 /* APP */
@@ -286,6 +312,18 @@ width:100%;
 <h4>Your Chats</h4>
 <div id="chatList"></div>
 
+<div id="sidebarFooter">
+
+<button class="footerBtn" onclick="changePassword()">
+⚙ Change Password
+</button>
+
+<button class="footerBtn" onclick="logout()">
+🚪 Logout
+</button>
+
+</div>
+
 </div>
 
 <div id="app">
@@ -333,6 +371,34 @@ sidebar.classList.remove("open")
 overlay.classList.remove("show")
 }
 
+/* ACCOUNT */
+
+function logout(){
+window.location="/logout"
+}
+
+async function changePassword(){
+
+const pass=prompt("Enter new password")
+
+if(!pass) return
+
+const res=await fetch("/change-password",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({password:pass})
+})
+
+const data=await res.json()
+
+if(data.status){
+alert("Password updated")
+}else{
+alert("Update failed")
+}
+
+}
+
 /* CHAT ENGINE */
 
 let currentChatId=null
@@ -369,8 +435,6 @@ div.innerText=text
 messages.appendChild(div)
 }
 
-/* KEYBOARD HANDLING */
-
 textarea.addEventListener("keydown",function(e){
 
 const isMobile=/Mobi|Android/i.test(navigator.userAgent)
@@ -395,78 +459,7 @@ document.getElementById("imageUpload").addEventListener("change",function(){
 const file=this.files[0]
 if(!file) return
 pendingImage=file
-const reader=new FileReader()
-reader.onload=e=>{
-const div=document.createElement("div")
-div.className="message user"
-const img=document.createElement("img")
-img.src=e.target.result
-div.appendChild(img)
-messages.appendChild(div)
-}
-reader.readAsDataURL(file)
 })
-
-/* IDEA FORM */
-
-function showIdeaForm(){
-
-const form=document.createElement("div")
-form.className="ideaCard"
-
-form.innerHTML=`
-<h2>Clarify Your Idea</h2>
-
-<input id="idea" placeholder="Your idea">
-<input id="why" placeholder="Why it matters">
-<input id="skills" placeholder="Your skills">
-<input id="resources" placeholder="Resources">
-<input id="hours" placeholder="Hours per week">
-<input id="income" placeholder="Income goal">
-<input id="currency" placeholder="Currency">
-
-<button id="generateBtn" onclick="generatePlan()">Generate Plan</button>
-`
-
-messages.appendChild(form)
-
-}
-
-async function generatePlan(){
-
-const ideaVal=idea.value
-const whyVal=why.value
-const skillsVal=skills.value
-const resourcesVal=resources.value
-const hoursVal=hours.value
-const incomeVal=income.value
-const currencyVal=currency.value
-
-addAI("Generating startup plan...")
-
-const res=await fetch("/plan",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-idea:ideaVal,
-why:whyVal,
-skills:skillsVal,
-resources:resourcesVal,
-hours:hoursVal,
-incomeGoal:incomeVal,
-currency:currencyVal
-})
-})
-
-const data=await res.json()
-
-currentChatId=data.chatId
-
-addAI(data.reply)
-
-loadChats()
-
-}
 
 /* SEND MESSAGE */
 
@@ -506,7 +499,7 @@ loadChats()
 
 }
 
-/* CHAT HISTORY */
+/* LOAD CHATS */
 
 async function loadChats(){
 
@@ -515,7 +508,7 @@ const chats=await res.json()
 
 chatList.innerHTML=""
 
-chats.forEach(chat=>{
+chats.reverse().forEach(chat=>{
 
 const div=document.createElement("div")
 div.className="chatItem"
@@ -523,50 +516,7 @@ div.className="chatItem"
 const title=document.createElement("span")
 title.innerText=chat.title||"Untitled Chat"
 
-const menu=document.createElement("div")
-menu.className="menu"
-menu.innerText="⋯"
-
-const dropdown=document.createElement("div")
-dropdown.className="menuDropdown"
-
-const rename=document.createElement("button")
-rename.innerText="Rename"
-
-rename.onclick=()=>{
-const newTitle=prompt("New title")
-if(!newTitle) return
-
-fetch("/rename-chat",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({id:chat.id,title:newTitle})
-}).then(loadChats)
-}
-
-const del=document.createElement("button")
-del.innerText="Delete"
-
-del.onclick=()=>{
-fetch("/delete-chat",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({id:chat.id})
-}).then(loadChats)
-}
-
-dropdown.appendChild(rename)
-dropdown.appendChild(del)
-
-menu.onclick=(e)=>{
-e.stopPropagation()
-dropdown.style.display =
-dropdown.style.display==="flex" ? "none" : "flex"
-}
-
 div.appendChild(title)
-div.appendChild(menu)
-div.appendChild(dropdown)
 
 div.onclick=()=>{
 currentChatId=chat.id
@@ -589,18 +539,10 @@ function startNew(){
 
 messages.innerHTML=""
 currentChatId=null
-
 addAI("Start a new idea discussion or generate a structured startup plan.")
-
-const tool=document.createElement("div")
-tool.className="ideaCard"
-tool.innerHTML=`<button onclick="showIdeaForm()">Generate Startup Plan</button>`
-
-messages.appendChild(tool)
 
 }
 
-showIdeaForm()
 loadChats()
 
 </script>

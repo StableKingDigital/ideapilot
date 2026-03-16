@@ -1,7 +1,8 @@
 <!DOCTYPE html>
+
 <html>
 <head>
-<title>IdeaPilot Sign Up</title>
+<title>IdeaPilot Signup</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -27,6 +28,7 @@ width:320px;
 
 h2{
 margin-top:0;
+text-align:center;
 }
 
 input{
@@ -49,6 +51,10 @@ color:white;
 cursor:pointer;
 }
 
+button:hover{
+background:#16a34a;
+}
+
 p{
 font-size:14px;
 text-align:center;
@@ -59,7 +65,27 @@ color:#22c55e;
 text-decoration:none;
 }
 
+/* PASSWORD FIELD */
+
+.passwordBox{
+position:relative;
+}
+
+.passwordBox input{
+padding-right:40px;
+}
+
+.eye{
+position:absolute;
+right:12px;
+top:50%;
+transform:translateY(-50%);
+cursor:pointer;
+font-size:16px;
+}
+
 </style>
+
 </head>
 
 <body>
@@ -69,15 +95,31 @@ text-decoration:none;
 <h2>Create Account</h2>
 
 <input id="email" placeholder="Email">
-<input id="password" type="password" placeholder="Password">
 
-<button onclick="signup()">Sign Up</button>
+<div class="passwordBox">
+<input id="password" type="password" placeholder="Password">
+<span class="eye" onclick="togglePassword()">👁</span>
+</div>
+
+<button onclick="signup()">Create Account</button>
 
 <p>Already have an account? <a href="/login.html">Login</a></p>
 
 </div>
 
 <script>
+
+function togglePassword(){
+
+const input=document.getElementById("password")
+
+if(input.type==="password"){
+input.type="text"
+}else{
+input.type="password"
+}
+
+}
 
 async function signup(){
 
@@ -93,7 +135,7 @@ body:JSON.stringify({email,password})
 const data=await res.json()
 
 if(data.status){
-alert("Account created. Please login.")
+alert("Account created successfully")
 window.location="/login.html"
 }else{
 alert(data.error)
@@ -105,3 +147,4 @@ alert(data.error)
 
 </body>
 </html>
+
